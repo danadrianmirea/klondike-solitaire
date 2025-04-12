@@ -14,7 +14,9 @@ int WINDOW_HEIGHT;
 int MENU_HEIGHT;
 
 Solitaire::Solitaire() {
-    srand(time(nullptr));
+    auto now = std::chrono::system_clock::now();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    srand(static_cast<unsigned int>(millis));
     
     // Calculate scaling factor based on screen size
     int screenWidth = GetScreenWidth();

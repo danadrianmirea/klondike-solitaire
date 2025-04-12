@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <vector>
 #include <string>
+#include <chrono>
 #include "Card.h"
 
 // Define debug flag
