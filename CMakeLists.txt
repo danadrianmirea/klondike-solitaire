@@ -40,6 +40,8 @@ endif()
 # Add executable
 add_executable(${PROJECT_NAME} 
     src/main.cpp
+    src/Card.cpp
+    src/Solitaire.cpp
 )
 
 # Include directories
@@ -86,3 +88,10 @@ if(WIN32)
         message(WARNING "raylib.dll not found in any of the expected locations. The executable may not run correctly.")
     endif()
 endif() 
+
+# Copy assets folder to build directory
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/assets"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+) 

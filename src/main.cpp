@@ -1,29 +1,40 @@
 #include <raylib.h>
+#include "Solitaire.h"
 
-const int windowWidth = 800;
-const int windowHeight = 600;
-const int radius = 100;
-const Color circleColor = BLUE;
+// Forward declare the global constants
+extern int WINDOW_WIDTH;
+extern int WINDOW_HEIGHT;
 
-void Draw()
-{
-    BeginDrawing();
-    ClearBackground(GRAY);
-    DrawCircle(windowWidth/2, windowHeight/2, radius, circleColor);
-    EndDrawing();    
-}
+int main() {
+    // Initialize window
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Solitaire");
+    SetTargetFPS(60);
 
-int main()
-{
-    bool exit = false;
-    InitWindow(windowWidth, windowHeight, "Raylib template");
+    // Create game instance
+    Solitaire game;
 
-    while ((!WindowShouldClose()))
-    {
-        Draw();
+    // Main game loop
+    while (!WindowShouldClose()) {
+        // Handle input
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            game.handleMouseDown(GetMousePosition());
+        }
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+            game.handleMouseUp(GetMousePosition());
+        }
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+            game.handleDoubleClick(GetMousePosition());
+        }
+
+        // Update game state
+        game.update();
+
+        // Draw
+        BeginDrawing();
+        game.draw();
+        EndDrawing();
     }
 
     CloseWindow();
-
     return 0;
-}
+};
