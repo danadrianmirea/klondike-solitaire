@@ -10,6 +10,9 @@ int main() {
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Solitaire");
     SetTargetFPS(60);
 
+    // Disable ESC as exit key
+    SetExitKey(0);
+
     // Create game instance
     Solitaire game;
 
@@ -18,7 +21,7 @@ int main() {
         // Handle input
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             game.handleMouseDown(GetMousePosition());
-        }
+        };
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
             game.handleMouseUp(GetMousePosition());
         }

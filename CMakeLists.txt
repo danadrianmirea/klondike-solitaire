@@ -5,6 +5,10 @@ project(raylib_solitaire)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Wl,--subsystem,windows")
+
+
 # Set raylib path - adjust this to your raylib installation path
 set(RAYLIB_PATH "C:/raylib" CACHE PATH "Path to raylib installation")
 
@@ -47,11 +51,19 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(json)
 
 # Add executable
-add_executable(${PROJECT_NAME} 
-    src/main.cpp
-    src/Card.cpp
-    src/Solitaire.cpp
-)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_executable(${PROJECT_NAME} WIN32
+        src/main.cpp
+        src/Card.cpp
+        src/Solitaire.cpp
+    )
+else()
+    add_executable(${PROJECT_NAME}
+        src/main.cpp
+        src/Card.cpp
+        src/Solitaire.cpp
+    )
+endif()
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE 
