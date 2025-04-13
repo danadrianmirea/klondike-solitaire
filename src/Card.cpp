@@ -2,67 +2,138 @@
 #include "Solitaire.h" // For CARD_WIDTH and CARD_HEIGHT
 #include <algorithm>
 #include <iostream>
+#include <filesystem>
 
-// Initialize static member
+// Initialize static members
 Texture2D Card::cardBack = {0};
+std::unordered_map<std::string, Texture2D> Card::textureCache;
+bool Card::texturesLoaded = false;
+
+void Card::loadTexture(const std::string& imagePath) {
+    if (FileExists(imagePath.c_str())) {
+        Image img = LoadImage(imagePath.c_str());
+        if (img.data == NULL) {
+            std::cerr << "Failed to load image: " << imagePath << std::endl;
+            return;
+        }
+
+        // Scale the image
+        ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
+
+        // Create texture from scaled image
+        Texture2D texture = LoadTextureFromImage(img);
+        if (texture.id == 0) {
+            std::cerr << "Failed to create texture from image: " << imagePath << std::endl;
+        } else {
+            // Cache the texture
+            textureCache[imagePath] = texture;
+        }
+
+        // Clean up
+        UnloadImage(img);
+    } else {
+        std::cerr << "Card image file not found: " << imagePath << std::endl;
+    }
+}
+
+void Card::preloadTextures() {
+    if (texturesLoaded) return;
+
+    const std::string suits[] = {"hearts", "diamonds", "clubs", "spades"};
+    const std::string values[] = {"ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king"};
+
+    // Get the current working directory
+    std::string currentDir = GetWorkingDirectory();
+    std::vector<std::string> imagePaths;
+
+    // Collect all image paths
+    for (const auto& suit : suits) {
+        for (const auto& value : values) {
+            std::string imagePath = "assets/cards/" + value + "_of_" + suit + ".png";
+            if (!FileExists(imagePath.c_str())) {
+                imagePath = currentDir + "/assets/cards/" + value + "_of_" + suit + ".png";
+            }
+            imagePaths.push_back(imagePath);
+        }
+    }
+
+    // Determine number of threads to use (use half the available threads to avoid overwhelming the system)
+    unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency() / 2);
+    std::vector<std::future<void>> futures;
+
+    // Split work among threads
+    size_t chunkSize = (imagePaths.size() + numThreads - 1) / numThreads;
+    for (size_t i = 0; i < imagePaths.size(); i += chunkSize) {
+        size_t end = std::min(i + chunkSize, imagePaths.size());
+        futures.push_back(std::async(std::launch::async, [&imagePaths, i, end]() {
+            for (size_t j = i; j < end; ++j) {
+                loadTexture(imagePaths[j]);
+            }
+        }));
+    }
+
+    // Wait for all threads to complete
+    for (auto& future : futures) {
+        future.wait();
+    }
+
+    texturesLoaded = true;
+}
 
 void Card::loadCardBack(const std::string &imagePath) {
-  if (cardBack.id == 0) { // Only load if not already loaded
-    if (FileExists(imagePath.c_str())) {
-      Image img = LoadImage(imagePath.c_str());
-      ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
-      cardBack = LoadTextureFromImage(img);
-      UnloadImage(img);
+    if (cardBack.id == 0) { // Only load if not already loaded
+        if (FileExists(imagePath.c_str())) {
+            Image img = LoadImage(imagePath.c_str());
+            ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
+            cardBack = LoadTextureFromImage(img);
+            UnloadImage(img);
 
-      if (cardBack.id == 0) {
-        std::cerr << "Failed to load card back texture: " << imagePath
-                  << std::endl;
-      }
-    } else {
-      std::cerr << "Card back image file not found: " << imagePath << std::endl;
+            if (cardBack.id == 0) {
+                std::cerr << "Failed to load card back texture: " << imagePath
+                        << std::endl;
+            }
+        } else {
+            std::cerr << "Card back image file not found: " << imagePath << std::endl;
+        }
     }
-  }
 }
 
 void Card::unloadCardBack() {
-  if (cardBack.id != 0) {
-    UnloadTexture(cardBack);
-    cardBack = {0};
-  }
+    if (cardBack.id != 0) {
+        UnloadTexture(cardBack);
+        cardBack = {0};
+    }
+}
+
+void Card::unloadAllTextures() {
+    // Unload all cached textures
+    for (auto& pair : textureCache) {
+        if (pair.second.id != 0) {
+            UnloadTexture(pair.second);
+        }
+    }
+    textureCache.clear();
+    
+    // Unload card back texture
+    unloadCardBack();
+    
+    texturesLoaded = false;
 }
 
 Card::Card(const std::string &suit, const std::string &value,
            const std::string &imagePath)
     : suit(suit), value(value), faceUp(false), image({0}) {
-  // Print the full path being used for debugging
-  std::cout << "Loading card texture from: " << imagePath << std::endl;
-
-  // Check if file exists before loading
-  if (FileExists(imagePath.c_str())) {
-    // Load the image
-    Image img = LoadImage(imagePath.c_str());
-    if (img.data == NULL) {
-      std::cerr << "Failed to load image: " << imagePath << std::endl;
-      return;
+    // Check if texture is already in cache
+    auto it = textureCache.find(imagePath);
+    if (it != textureCache.end()) {
+        image = it->second;
+    } else {
+        // If textures aren't pre-loaded, load this one
+        loadTexture(imagePath);
+        image = textureCache[imagePath];
     }
 
-    // Scale the image
-    ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
-
-    // Create texture from scaled image
-    image = LoadTextureFromImage(img);
-    if (image.id == 0) {
-      std::cerr << "Failed to create texture from image: " << imagePath
-                << std::endl;
-    }
-
-    // Clean up
-    UnloadImage(img);
-  } else {
-    std::cerr << "Card image file not found: " << imagePath << std::endl;
-  }
-
-  rect = {0, 0, (float)CARD_WIDTH, (float)CARD_HEIGHT};
+    rect = {0, 0, (float)CARD_WIDTH, (float)CARD_HEIGHT};
 }
 
 // Copy constructor - don't unload the original texture
@@ -83,10 +154,7 @@ Card &Card::operator=(const Card &other) {
 }
 
 Card::~Card() {
-  // Only unload the texture if this is the last card using it
-  // We'll need to track texture usage to do this properly
-  // For now, we'll keep the texture loaded
-  // UnloadTexture(image);
+  // Textures are now managed by the cache, no need to unload here
 }
 
 void Card::flip() { faceUp = !faceUp; }

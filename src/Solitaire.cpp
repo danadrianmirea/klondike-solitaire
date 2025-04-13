@@ -61,8 +61,27 @@ Solitaire::Solitaire() {
         (monitorHeight - WINDOW_HEIGHT) / 2
     );
     
+    // Show initial loading screen
+    BeginDrawing();
+    ClearBackground(GREEN);
+    DrawText("Loading textures...", WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2 - 20, 20, WHITE);
+    EndDrawing();
+    
     // Load card back texture
     Card::loadCardBack("assets/cards/card_back_red.png");
+    
+    // Preload all card textures in parallel
+    Card::preloadTextures();
+    
+    // Keep showing loading screen until textures are fully loaded
+    while (!Card::areTexturesLoaded()) {
+        BeginDrawing();
+        ClearBackground(GREEN);
+        DrawText("Loading textures...", WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2 - 20, 20, WHITE);
+        EndDrawing();
+    }
+    
+    // Now that textures are loaded, initialize the game
     resetGame();
 
     // Initialize menu state
@@ -70,13 +89,18 @@ Solitaire::Solitaire() {
 }
 
 Solitaire::~Solitaire() {
-    // Clean up resources
-    Card::unloadCardBack();
+    // Clean up all textures
+    Card::unloadAllTextures();
 }
 
 void Solitaire::resetGame() {
-    tableau.clear();
-    foundations.clear();
+    // Clear all piles but keep the textures
+    for (auto& pile : tableau) {
+        pile.clear();
+    }
+    for (auto& pile : foundations) {
+        pile.clear();
+    }
     stock.clear();
     waste.clear();
     draggedCards.clear();
@@ -87,7 +111,22 @@ void Solitaire::resetGame() {
     tableau.resize(7);
     foundations.resize(4);
 
-    loadCards();
+    // Create a new deck by reusing existing textures
+    const std::string suits[] = {"hearts", "diamonds", "clubs", "spades"};
+    const std::string values[] = {"ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king"};
+
+    for (const auto& suit : suits) {
+        for (const auto& value : values) {
+            std::string imagePath = "assets/cards/" + value + "_of_" + suit + ".png";
+            stock.emplace_back(suit, value, imagePath);
+        }
+    }
+
+    // Shuffle the deck
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(stock.begin(), stock.end(), g);
+
     dealCards();
 }
 
