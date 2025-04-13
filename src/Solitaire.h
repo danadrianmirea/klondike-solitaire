@@ -7,19 +7,25 @@
 
 // Define debug flag
 #define DEBUG 1
+#define DEBUG_STOCKPILE 0
 
-// Base constants (original game size)
-constexpr int BASE_CARD_WIDTH = 71;
-constexpr int BASE_CARD_HEIGHT = 96;
-constexpr int BASE_CARD_SPACING = 20;
-constexpr int BASE_TABLEAU_SPACING = 100;
-constexpr int BASE_WINDOW_WIDTH = 800;
-constexpr int BASE_WINDOW_HEIGHT = 600;
-constexpr int BASE_MENU_HEIGHT = 30;
+// Define base constants
+const int BASE_CARD_WIDTH = 71;
+const int BASE_CARD_HEIGHT = 96;
+const int BASE_CARD_SPACING = 20;
+const int BASE_TABLEAU_SPACING = 100;
+const int BASE_WINDOW_WIDTH = 800;
+const int BASE_WINDOW_HEIGHT = 600;
+const int BASE_MENU_HEIGHT = 30;
 
-// Calculate scaling factor based on height (to maintain aspect ratio)
-// Add a small margin (0.85) to account for Windows decorations and taskbar
-constexpr float SCALE_FACTOR = 0.85f;  // Will be calculated in constructor
+// Base menu constants
+const int BASE_MENU_FILE_X = 160;
+const int BASE_MENU_FILE_WIDTH = 100;
+const int BASE_MENU_ITEM_HEIGHT = 25;
+const int BASE_MENU_TEXT_PADDING = 5;
+const int BASE_MENU_DROPDOWN_HEIGHT = BASE_MENU_ITEM_HEIGHT * 4;  // 4 menu items
+
+const float SCALE_FACTOR = 0.8f;
 
 // Scaled constants (will be calculated in constructor)
 extern int CARD_WIDTH;
@@ -29,6 +35,11 @@ extern int TABLEAU_SPACING;
 extern int WINDOW_WIDTH;
 extern int WINDOW_HEIGHT;
 extern int MENU_HEIGHT;
+extern int MENU_FILE_X;
+extern int MENU_FILE_WIDTH;
+extern int MENU_ITEM_HEIGHT;
+extern int MENU_TEXT_PADDING;
+extern int MENU_DROPDOWN_HEIGHT;
 
 class Solitaire {
 public:
@@ -53,6 +64,10 @@ private:
     bool gameWon;
     Vector2 dragOffset;  // Track the offset between mouse and card position during drag
     double lastDealTime;  // Track when the last card was dealt to waste
+
+    // Menu state
+    bool menuOpen;
+    void handleMenuClick(Vector2 pos);
 
     // Helper methods
     void resetGame();
