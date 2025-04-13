@@ -845,10 +845,7 @@ void Solitaire::draw() {
     for (int i = 0; i < 7; i++) {
         float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
         float y = 200 * SCALE_FACTOR + MENU_HEIGHT;  // Add MENU_HEIGHT
-        
-        // Draw collision rectangle for the pile
-        DrawRectangleLines(x, y, CARD_WIDTH, CARD_HEIGHT, RED);
-        
+         
         for (size_t j = 0; j < tableau[i].size(); j++) {
             // Skip drawing cards that are being dragged
             if (draggedSourcePile == &tableau[i] && j >= draggedStartIndex) {
@@ -856,14 +853,6 @@ void Solitaire::draw() {
             }
             tableau[i][j].setPosition(x, y + j * CARD_SPACING);
             tableau[i][j].draw();
-            
-            // Draw collision rectangle for each card
-            DrawRectangleLines(x, y + j * CARD_SPACING, CARD_WIDTH, CARD_HEIGHT, BLUE);
-        }
-        // Draw empty tableau slot if pile is empty
-        if (tableau[i].empty()) {
-            DrawRectangle(x, y, CARD_WIDTH, CARD_HEIGHT, WHITE);
-            DrawRectangleLines(x, y, CARD_WIDTH, CARD_HEIGHT, BLACK);
         }
     }
 
