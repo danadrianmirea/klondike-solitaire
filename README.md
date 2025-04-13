@@ -58,7 +58,7 @@ make
 
 - Left-click and drag to move cards
 - Double-click to automatically move cards to foundation piles
-- Right-click to flip through the stock pile
+- Left-click to flip through the stock pile
 
 ## Project Structure
 
