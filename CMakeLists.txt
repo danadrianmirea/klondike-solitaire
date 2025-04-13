@@ -37,6 +37,15 @@ if(NOT RAYLIB_INCLUDE_DIR OR NOT RAYLIB_LIBRARY)
     message(FATAL_ERROR "raylib not found. Please set RAYLIB_PATH to your raylib installation directory")
 endif()
 
+# Add nlohmann/json library
+include(FetchContent)
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.2
+)
+FetchContent_MakeAvailable(json)
+
 # Add executable
 add_executable(${PROJECT_NAME} 
     src/main.cpp
@@ -45,7 +54,10 @@ add_executable(${PROJECT_NAME}
 )
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PRIVATE ${RAYLIB_INCLUDE_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${RAYLIB_INCLUDE_DIR}
+    ${json_SOURCE_DIR}/include
+)
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE 

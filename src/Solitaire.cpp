@@ -3,6 +3,10 @@
 #include <random>
 #include <ctime>
 #include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 // Define the scaled constants
 int CARD_WIDTH;
@@ -510,6 +514,199 @@ bool Solitaire::checkWin() {
     return true;
 }
 
+void Solitaire::saveGame() {
+    json gameState;
+    
+    // Save tableau piles
+    for (const auto& pile : tableau) {
+        json pileData;
+        for (const auto& card : pile) {
+            json cardData;
+            cardData["suit"] = card.getSuit();
+            cardData["value"] = card.getValue();
+            cardData["faceUp"] = card.isFaceUp();
+            pileData.push_back(cardData);
+        }
+        gameState["tableau"].push_back(pileData);
+    }
+    
+    // Save foundation piles
+    for (const auto& pile : foundations) {
+        json pileData;
+        for (const auto& card : pile) {
+            json cardData;
+            cardData["suit"] = card.getSuit();
+            cardData["value"] = card.getValue();
+            cardData["faceUp"] = card.isFaceUp();
+            pileData.push_back(cardData);
+        }
+        gameState["foundations"].push_back(pileData);
+    }
+    
+    // Save stock pile
+    json stockData;
+    for (const auto& card : stock) {
+        json cardData;
+        cardData["suit"] = card.getSuit();
+        cardData["value"] = card.getValue();
+        cardData["faceUp"] = card.isFaceUp();
+        stockData.push_back(cardData);
+    }
+    gameState["stock"] = stockData;
+    
+    // Save waste pile
+    json wasteData;
+    for (const auto& card : waste) {
+        json cardData;
+        cardData["suit"] = card.getSuit();
+        cardData["value"] = card.getValue();
+        cardData["faceUp"] = card.isFaceUp();
+        wasteData.push_back(cardData);
+    }
+    gameState["waste"] = wasteData;
+    
+    // Save game state to file
+    std::ofstream file("solitaire_save.txt");
+    if (file.is_open()) {
+        file << gameState.dump(4);
+        file.close();
+#if DEBUG == 1
+        std::cout << "Game saved successfully" << std::endl;
+#endif
+    } else {
+#if DEBUG == 1
+        std::cerr << "Failed to save game" << std::endl;
+#endif
+    }
+}
+
+bool Solitaire::loadGame() {
+    std::ifstream file("solitaire_save.txt");
+    if (!file.is_open()) {
+#if DEBUG == 1
+        std::cerr << "No save file found" << std::endl;
+#endif
+        return false;
+    }
+    
+    try {
+        json gameState;
+        file >> gameState;
+        file.close();
+        
+        // Clear current game state
+        tableau.clear();
+        foundations.clear();
+        stock.clear();
+        waste.clear();
+        draggedCards.clear();
+        draggedSourcePile = nullptr;
+        gameWon = false;
+        
+        // Initialize tableau and foundations
+        tableau.resize(7);
+        foundations.resize(4);
+        
+        // Load tableau piles
+        for (size_t i = 0; i < gameState["tableau"].size(); i++) {
+            for (const auto& cardData : gameState["tableau"][i]) {
+                std::string suit = cardData["suit"];
+                int value = cardData["value"];
+                bool faceUp = cardData["faceUp"];
+                
+                // Convert value back to string
+                std::string valueStr;
+                if (value == 1) valueStr = "ace";
+                else if (value == 11) valueStr = "jack";
+                else if (value == 12) valueStr = "queen";
+                else if (value == 13) valueStr = "king";
+                else valueStr = std::to_string(value);
+                
+                // Create card
+                std::string imagePath = "assets/cards/" + valueStr + "_of_" + suit + ".png";
+                Card card(suit, valueStr, imagePath);
+                if (faceUp) card.flip();
+                tableau[i].push_back(card);
+            }
+        }
+        
+        // Load foundation piles
+        for (size_t i = 0; i < gameState["foundations"].size(); i++) {
+            for (const auto& cardData : gameState["foundations"][i]) {
+                std::string suit = cardData["suit"];
+                int value = cardData["value"];
+                bool faceUp = cardData["faceUp"];
+                
+                // Convert value back to string
+                std::string valueStr;
+                if (value == 1) valueStr = "ace";
+                else if (value == 11) valueStr = "jack";
+                else if (value == 12) valueStr = "queen";
+                else if (value == 13) valueStr = "king";
+                else valueStr = std::to_string(value);
+                
+                // Create card
+                std::string imagePath = "assets/cards/" + valueStr + "_of_" + suit + ".png";
+                Card card(suit, valueStr, imagePath);
+                if (faceUp) card.flip();
+                foundations[i].push_back(card);
+            }
+        }
+        
+        // Load stock pile
+        for (const auto& cardData : gameState["stock"]) {
+            std::string suit = cardData["suit"];
+            int value = cardData["value"];
+            bool faceUp = cardData["faceUp"];
+            
+            // Convert value back to string
+            std::string valueStr;
+            if (value == 1) valueStr = "ace";
+            else if (value == 11) valueStr = "jack";
+            else if (value == 12) valueStr = "queen";
+            else if (value == 13) valueStr = "king";
+            else valueStr = std::to_string(value);
+            
+            // Create card
+            std::string imagePath = "assets/cards/" + valueStr + "_of_" + suit + ".png";
+            Card card(suit, valueStr, imagePath);
+            if (faceUp) card.flip();
+            stock.push_back(card);
+        }
+        
+        // Load waste pile
+        for (const auto& cardData : gameState["waste"]) {
+            std::string suit = cardData["suit"];
+            int value = cardData["value"];
+            bool faceUp = cardData["faceUp"];
+            
+            // Convert value back to string
+            std::string valueStr;
+            if (value == 1) valueStr = "ace";
+            else if (value == 11) valueStr = "jack";
+            else if (value == 12) valueStr = "queen";
+            else if (value == 13) valueStr = "king";
+            else valueStr = std::to_string(value);
+            
+            // Create card
+            std::string imagePath = "assets/cards/" + valueStr + "_of_" + suit + ".png";
+            Card card(suit, valueStr, imagePath);
+            if (faceUp) card.flip();
+            waste.push_back(card);
+        }
+        
+#if DEBUG == 1
+        std::cout << "Game loaded successfully" << std::endl;
+#endif
+        return true;
+    } catch (const std::exception& e) {
+#if DEBUG == 1
+        std::cerr << "Error loading game: " << e.what() << std::endl;
+#endif
+        return false;
+    }
+}
+
 void Solitaire::handleMenuClick(Vector2 pos) {
     // Check if clicking on File menu
     if (pos.y <= MENU_HEIGHT && 
@@ -531,10 +728,10 @@ void Solitaire::handleMenuClick(Vector2 pos) {
                     resetGame();
                     break;
                 case 1: // Save
-                    // TODO: Implement save game
+                    saveGame();
                     break;
                 case 2: // Load
-                    // TODO: Implement load game
+                    loadGame();
                     break;
                 case 3: // Quit
                     // Clean up resources

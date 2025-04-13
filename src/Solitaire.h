@@ -83,4 +83,8 @@ private:
 
     // Helper method to get the next value in sequence
     std::string getNextValue(const std::string& value);
+
+    // Save and load game methods
+    void saveGame();
+    bool loadGame();
 }; 
