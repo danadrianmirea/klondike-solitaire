@@ -70,37 +70,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # Set output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Find raylib.dll in various possible locations
-set(RAYLIB_DLL_PATHS
-    "${RAYLIB_PATH}/lib/raylib.dll"
-    "${RAYLIB_PATH}/raylib.dll"
-    "${RAYLIB_PATH}/src/raylib.dll"
-    "${RAYLIB_PATH}/raylib/src/raylib.dll"
-)
-
-# Debug message for DLL paths
-foreach(DLL_PATH ${RAYLIB_DLL_PATHS})
-    message(STATUS "Checking for DLL at: ${DLL_PATH}")
-    if(EXISTS ${DLL_PATH})
-        message(STATUS "Found raylib.dll at: ${DLL_PATH}")
-        set(RAYLIB_DLL_FOUND ${DLL_PATH})
-        break()
-    endif()
-endforeach()
-
-# Copy DLLs to output directory (Windows specific)
-if(WIN32)
-    if(RAYLIB_DLL_FOUND)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${RAYLIB_DLL_FOUND}"
-                $<TARGET_FILE_DIR:${PROJECT_NAME}>
-        )
-    else()
-        message(WARNING "raylib.dll not found in any of the expected locations. The executable may not run correctly.")
-    endif()
-endif() 
-
 # Copy assets folder to build directory
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
