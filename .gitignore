@@ -1,5 +1,13 @@
 *.exe
 *.dsym
+*.idx
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.obj
+*.o
+
 main
 
 # Build directories
