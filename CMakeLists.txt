@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Wl,--subsystem,windows")
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Wl,--subsystem,windows -static-libgcc -static-libstdc++ -static")
 
 
 # Set raylib path - adjust this to your raylib installation path
@@ -18,18 +18,16 @@ message(STATUS "Looking for raylib in: ${RAYLIB_PATH}")
 # Find raylib
 find_path(RAYLIB_INCLUDE_DIR raylib.h
     PATHS 
-        ${RAYLIB_PATH}/include
-        ${RAYLIB_PATH}/src
         ${RAYLIB_PATH}/raylib/src
+        ${RAYLIB_PATH}/include
     DOC "Path to raylib headers"
 )
 
 find_library(RAYLIB_LIBRARY
     NAMES raylib
     PATHS 
+        ${RAYLIB_PATH}/w64devkit/x86_64-w64-mingw32/lib
         ${RAYLIB_PATH}/lib
-        ${RAYLIB_PATH}/src
-        ${RAYLIB_PATH}/raylib/src
     DOC "Path to raylib library"
 )
 
@@ -41,14 +39,18 @@ if(NOT RAYLIB_INCLUDE_DIR OR NOT RAYLIB_LIBRARY)
     message(FATAL_ERROR "raylib not found. Please set RAYLIB_PATH to your raylib installation directory")
 endif()
 
-# Add nlohmann/json library
+# Add nlohmann/json as a header-only library
 include(FetchContent)
 FetchContent_Declare(
     json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.2
+    URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp
+    DOWNLOAD_NO_EXTRACT TRUE
 )
 FetchContent_MakeAvailable(json)
+
+# Create directory for json.hpp
+file(MAKE_DIRECTORY ${json_SOURCE_DIR}/nlohmann)
+file(COPY ${json_SOURCE_DIR}/json.hpp DESTINATION ${json_SOURCE_DIR}/nlohmann)
 
 # Add executable
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -68,7 +70,7 @@ endif()
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${RAYLIB_INCLUDE_DIR}
-    ${json_SOURCE_DIR}/include
+    ${json_SOURCE_DIR}
 )
 
 # Link libraries

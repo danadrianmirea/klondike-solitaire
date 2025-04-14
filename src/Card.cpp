@@ -18,7 +18,7 @@ void Card::loadTexture(const std::string& imagePath) {
         }
 
         // Scale the image
-        //ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
+        ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
 
         // Create texture from scaled image
         Texture2D texture = LoadTextureFromImage(img);
@@ -84,7 +84,7 @@ void Card::loadCardBack(const std::string &imagePath) {
     if (cardBack.id == 0) { // Only load if not already loaded
         if (FileExists(imagePath.c_str())) {
             Image img = LoadImage(imagePath.c_str());
-            //ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
+            ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
             cardBack = LoadTextureFromImage(img);
             //UnloadImage(img);
 
