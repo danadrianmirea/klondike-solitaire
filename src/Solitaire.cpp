@@ -427,7 +427,32 @@ void Solitaire::handleMouseDown(Vector2 pos) {
         if (!draggedCards.empty()) break;
     }
 
-    // Check waste pile if no card was found in tableau (no change needed)
+    // Check foundation piles if no card was found in tableau
+    if (draggedCards.empty()) {
+        for (int i = 0; i < 4; i++) {
+            float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
+            float y = 10 * SCALE_FACTOR + MENU_HEIGHT;
+            
+            if (!foundations[i].empty()) {
+                foundations[i].back().setPosition(x, y);
+                if (CheckCollisionPointRec(pos, foundations[i].back().getRect())) {
+                    draggedCards.clear();
+                    draggedCards.push_back(foundations[i].back());
+                    draggedStartIndex = foundations[i].size() - 1;
+                    draggedSourcePile = &foundations[i];
+                    
+                    // Calculate offset from mouse position to card position
+                    dragOffset = {
+                        pos.x - x,
+                        pos.y - y
+                    };
+                    break;
+                }
+            }
+        }
+    }
+
+    // Check waste pile if no card was found in tableau or foundation
     if (draggedCards.empty() && !waste.empty()) {
         float wasteX = stockX + TABLEAU_SPACING;
         float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
@@ -458,6 +483,17 @@ void Solitaire::handleMouseUp(Vector2 pos) {
             float wasteX = stockX + TABLEAU_SPACING;
             float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
             draggedCards[0].setPosition(wasteX, wasteY);
+        } else if (draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
+                  draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
+            // Find the original foundation pile
+            for (int i = 0; i < 4; i++) {
+                if (&foundations[i] == draggedSourcePile) {
+                    float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
+                    float y = 10 * SCALE_FACTOR + MENU_HEIGHT;
+                    draggedCards[0].setPosition(x, y);
+                    break;
+                }
+            }
         } else {
             // Find the original tableau pile
             for (int i = 0; i < 7; i++) {
@@ -482,8 +518,10 @@ void Solitaire::handleMouseUp(Vector2 pos) {
 
     // Check if we can move to tableau
     if (canMoveToTableau(draggedCards[0], *targetPile)) {
-        // If dragging from waste pile, only move the top card
-        if (draggedSourcePile == &waste) {
+        // If dragging from waste pile or foundation pile, only move the top card
+        if (draggedSourcePile == &waste || 
+            draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
+            draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
             moveCards(*draggedSourcePile, *targetPile, draggedSourcePile->size() - 1);
         } else {
             moveCards(*draggedSourcePile, *targetPile, draggedStartIndex);
@@ -499,6 +537,17 @@ void Solitaire::handleMouseUp(Vector2 pos) {
             float wasteX = stockX + TABLEAU_SPACING;
             float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
             draggedCards[0].setPosition(wasteX, wasteY);
+        } else if (draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
+                  draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
+            // Find the original foundation pile
+            for (int i = 0; i < 4; i++) {
+                if (&foundations[i] == draggedSourcePile) {
+                    float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
+                    float y = 10 * SCALE_FACTOR + MENU_HEIGHT;
+                    draggedCards[0].setPosition(x, y);
+                    break;
+                }
+            }
         } else {
             // Find the original tableau pile
             for (int i = 0; i < 7; i++) {
@@ -832,8 +881,15 @@ void Solitaire::draw() {
         float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
         float y = 10 * SCALE_FACTOR + MENU_HEIGHT;  // Add MENU_HEIGHT
         if (!foundations[i].empty()) {
-            foundations[i].back().setPosition(x, y);
-            foundations[i].back().draw();
+            // If this foundation pile is the source of the dragged card, show the card underneath
+            if (draggedSourcePile == &foundations[i] && foundations[i].size() > 1) {
+                foundations[i][foundations[i].size() - 2].setPosition(x, y);
+                foundations[i][foundations[i].size() - 2].draw();
+            } else if (draggedSourcePile != &foundations[i]) {
+                // Otherwise show the top card if it's not being dragged
+                foundations[i].back().setPosition(x, y);
+                foundations[i].back().draw();
+            }
         } else {
             // Draw empty foundation slot
             DrawRectangle(x, y, CARD_WIDTH, CARD_HEIGHT, WHITE);
