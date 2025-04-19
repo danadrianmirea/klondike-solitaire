@@ -4,9 +4,12 @@
 #include <ctime>
 #include <iostream>
 #include <fstream>
+
+#ifndef EMSCRIPTEN_BUILD
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
+#endif
 
 // Define the scaled constants
 int CARD_WIDTH;
@@ -603,6 +606,7 @@ bool Solitaire::checkWin() {
 }
 
 void Solitaire::saveGame() {
+#ifndef EMSCRIPTEN_BUILD
     json gameState;
     
     // Save tableau piles
@@ -666,9 +670,11 @@ void Solitaire::saveGame() {
         std::cerr << "Failed to save game" << std::endl;
 #endif
     }
+#endif
 }
 
 bool Solitaire::loadGame() {
+#ifndef EMSCRIPTEN_BUILD
     std::ifstream file("solitaire_save.txt");
     if (!file.is_open()) {
 #if DEBUG == 1
@@ -793,6 +799,7 @@ bool Solitaire::loadGame() {
 #endif
         return false;
     }
+#endif
 }
 
 void Solitaire::handleMenuClick(Vector2 pos) {
