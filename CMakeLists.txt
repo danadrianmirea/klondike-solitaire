@@ -88,7 +88,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 # Set output directory
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Copy assets folder to build directory
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -96,3 +96,19 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         "${CMAKE_SOURCE_DIR}/assets"
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
 ) 
+
+# Create zip file of bin directory contents
+if(WIN32)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND PowerShell -Command "Compress-Archive -Path '${CMAKE_BINARY_DIR}/${PROJECT_NAME}.exe','${CMAKE_BINARY_DIR}/assets' -DestinationPath '${CMAKE_BINARY_DIR}/${PROJECT_NAME}.zip' -Force"
+        COMMENT "Creating ${PROJECT_NAME}.zip with correct folder structure"
+    )
+else()
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.zip" 
+            --format=zip 
+            "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.exe"
+            "${CMAKE_BINARY_DIR}/assets"
+        COMMENT "Creating ${PROJECT_NAME} with correct folder structure"
+    )
+endif()
