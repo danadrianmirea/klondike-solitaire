@@ -7,7 +7,7 @@
 
 // Define debug flag
 #define DEBUG 1
-#define DEBUG_STOCKPILE 0
+#define DEBUG_STOCKPILE 1
 
 // Define base constants
 const int BASE_CARD_WIDTH = 71;

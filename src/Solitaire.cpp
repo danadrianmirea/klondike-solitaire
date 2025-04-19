@@ -271,9 +271,29 @@ bool Solitaire::canMoveToTableau(const Card& card, const std::vector<Card>& targ
     }
     
     const Card& topCard = targetPile.back();
+    
+#if DEBUG == 1
+    std::cout << "\nTableau move check details:" << std::endl;
+    std::cout << "Moving card: " << card.getSuit() << " " << card.getValue() << " (value: " << card.getValue() << ")" << std::endl;
+    std::cout << "Target card: " << topCard.getSuit() << " " << topCard.getValue() << " (value: " << topCard.getValue() << ")" << std::endl;
+    std::cout << "Card colors - Moving: " << (card.isRed() ? "red" : "black") 
+              << ", Target: " << (topCard.isRed() ? "red" : "black") << std::endl;
+    std::cout << "Value check - Moving card value: " << card.getValue() 
+              << ", Target card value - 1: " << (topCard.getValue() - 1) << std::endl;
+#endif
+    
     // Check if colors are different and values are in sequence
-    return (card.isRed() != topCard.isRed()) && 
-           (card.getValue() == topCard.getValue() - 1);
+    bool colorsDifferent = (card.isRed() != topCard.isRed());
+    bool valuesInSequence = (card.getValue() == topCard.getValue() - 1);
+    
+#if DEBUG == 1
+    std::cout << "Move validation:" << std::endl;
+    std::cout << "Colors different: " << (colorsDifferent ? "yes" : "no") << std::endl;
+    std::cout << "Values in sequence: " << (valuesInSequence ? "yes" : "no") << std::endl;
+    std::cout << "Final result: " << (colorsDifferent && valuesInSequence ? "valid" : "invalid") << std::endl;
+#endif
+    
+    return colorsDifferent && valuesInSequence;
 }
 
 std::string Solitaire::getNextValue(const std::string& value) {
@@ -303,13 +323,34 @@ bool Solitaire::canMoveToFoundation(const Card& card, const std::vector<Card>& t
 
 bool Solitaire::moveCards(std::vector<Card>& sourcePile, std::vector<Card>& targetPile, 
                          int startIndex, int endIndex) {
+#if DEBUG == 1
+    std::cout << "\nAttempting to move cards:" << std::endl;
+    std::cout << "Source pile size: " << sourcePile.size() << std::endl;
+    std::cout << "Target pile size: " << targetPile.size() << std::endl;
+    std::cout << "Start index: " << startIndex << std::endl;
+    std::cout << "End index: " << endIndex << std::endl;
+    if (!sourcePile.empty()) {
+        std::cout << "Top card of source pile: " << sourcePile.back().getSuit() << " " << sourcePile.back().getValue() << std::endl;
+    }
+    if (!targetPile.empty()) {
+        std::cout << "Top card of target pile: " << targetPile.back().getSuit() << " " << targetPile.back().getValue() << std::endl;
+    }
+#endif
+
     if (startIndex < 0 || startIndex >= sourcePile.size()) {
+#if DEBUG == 1
+        std::cout << "Invalid start index, move failed" << std::endl;
+#endif
         return false;
     }
 
     if (endIndex == -1) {
         endIndex = sourcePile.size() - 1;
     }
+
+#if DEBUG == 1
+    std::cout << "Moving " << (endIndex - startIndex + 1) << " cards" << std::endl;
+#endif
 
     // Move cards
     for (int i = startIndex; i <= endIndex; i++) {
@@ -321,6 +362,12 @@ bool Solitaire::moveCards(std::vector<Card>& sourcePile, std::vector<Card>& targ
     if (!sourcePile.empty() && !sourcePile.back().isFaceUp()) {
         sourcePile.back().flip();
     }
+
+#if DEBUG == 1
+    std::cout << "Move completed successfully" << std::endl;
+    std::cout << "New source pile size: " << sourcePile.size() << std::endl;
+    std::cout << "New target pile size: " << targetPile.size() << std::endl;
+#endif
 
     return true;
 }
@@ -480,6 +527,9 @@ void Solitaire::handleMouseUp(Vector2 pos) {
 
     std::vector<Card>* targetPile = getPileAtPos(pos);
     if (!targetPile) {
+#if DEBUG == 1
+        std::cout << "\nNo target pile found at position" << std::endl;
+#endif
         // Return cards to original position
         if (draggedSourcePile == &waste) {
             float stockX = 50 * SCALE_FACTOR;
@@ -514,13 +564,34 @@ void Solitaire::handleMouseUp(Vector2 pos) {
     }
 
     if (targetPile == draggedSourcePile) {
+#if DEBUG == 1
+        std::cout << "\nTarget pile is same as source pile, cancelling move" << std::endl;
+#endif
         draggedCards.clear();
         draggedSourcePile = nullptr;
         return;
     }
 
+    // Check if target pile is a foundation pile
+    bool isFoundationPile = false;
+    for (auto& foundation : foundations) {
+        if (targetPile == &foundation) {
+            isFoundationPile = true;
+            break;
+        }
+    }
+
     // Check if we can move to tableau
-    if (canMoveToTableau(draggedCards[0], *targetPile)) {
+    bool canMove = canMoveToTableau(draggedCards[0], *targetPile);
+#if DEBUG == 1
+    std::cout << "\nMove validation result: " << (canMove ? "valid" : "invalid") << std::endl;
+    std::cout << "Target pile is " << (isFoundationPile ? "foundation" : "tableau") << std::endl;
+#endif
+
+    if (canMove) {
+#if DEBUG == 1
+        std::cout << "Attempting to move cards to tableau" << std::endl;
+#endif
         // If dragging from waste pile or foundation pile, only move the top card
         if (draggedSourcePile == &waste || 
             draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
@@ -531,9 +602,15 @@ void Solitaire::handleMouseUp(Vector2 pos) {
         }
     }
     // Check if we can move to foundation (only single cards can be moved to foundation)
-    else if (draggedCards.size() == 1 && canMoveToFoundation(draggedCards[0], *targetPile)) {
+    else if (isFoundationPile && draggedCards.size() == 1 && canMoveToFoundation(draggedCards[0], *targetPile)) {
+#if DEBUG == 1
+        std::cout << "Attempting to move card to foundation" << std::endl;
+#endif
         moveCards(*draggedSourcePile, *targetPile, draggedSourcePile->size() - 1);
     } else {
+#if DEBUG == 1
+        std::cout << "Invalid move, returning cards to original position" << std::endl;
+#endif
         // Return cards to original position
         if (draggedSourcePile == &waste) {
             float stockX = 50 * SCALE_FACTOR;
