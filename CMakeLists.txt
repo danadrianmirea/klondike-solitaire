@@ -13,7 +13,12 @@ endif()
 # Set available build types
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Wl,--subsystem,windows -static-libgcc -static-libstdc++ -static")
+# Set linker flags based on build type
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -Wl,--subsystem,console")
+else()
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Wl,--subsystem,windows -static-libgcc -static-libstdc++ -static")
+endif()
 
 # Set raylib path - adjust this to your raylib installation path
 set(RAYLIB_PATH "C:/raylib" CACHE PATH "Path to raylib installation")
