@@ -401,6 +401,7 @@ void Solitaire::handleMouseDown(Vector2 pos) {
                 card.flip();  // Flip face down
                 stock.push_back(card);
             }
+            lastDrawnCard = nullptr;  // Reset last drawn card when recycling waste
 #if DEBUG_STOCKPILE == 1
             std::cout << "Restored waste cards to stock" << std::endl;
 #endif
@@ -413,6 +414,7 @@ void Solitaire::handleMouseDown(Vector2 pos) {
             stock.pop_back();
             card.flip();  // Flip face up
             waste.push_back(card);
+            lastDrawnCard = &waste.back();  // Track the last drawn card
             lastDealTime = GetTime();
 #if DEBUG_STOCKPILE == 1
             std::cout << "Dealt card: " << card.getValue() << " of " << card.getSuit() << std::endl;
@@ -921,6 +923,30 @@ void Solitaire::handleMenuClick(Vector2 pos) {
     }
 }
 
+void Solitaire::handleRightClick(Vector2 pos) {
+    // Check if clicking on stock pile area
+    float stockX = 50 * SCALE_FACTOR;
+    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+    Rectangle stockRect = { stockX, stockY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
+    
+    if (CheckCollisionPointRec(pos, stockRect) && lastDrawnCard != nullptr && !waste.empty() && lastDrawnCard == &waste.back()) {
+        // Move the last drawn card back to stock
+        Card card = waste.back();
+        waste.pop_back();
+        card.flip();  // Flip face down
+        stock.push_back(card);
+        lastDrawnCard = nullptr;  // Reset last drawn card after undo
+
+        // If there are more cards in waste, make sure the new top card is face up
+        if (!waste.empty() && !waste.back().isFaceUp()) {
+            waste.back().flip();
+        }
+#if DEBUG == 1
+        std::cout << "Undo: Moved last drawn card back to stock pile" << std::endl;
+#endif
+    }
+}
+
 void Solitaire::update() {
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         Vector2 pos = GetMousePosition();
@@ -930,7 +956,7 @@ void Solitaire::update() {
         
         // Then check game interactions
         if (!menuOpen) {
-            // Mouse handling is now done in handleMouseDown
+            handleMouseDown(pos);
         }
     }
     if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
@@ -944,6 +970,9 @@ void Solitaire::update() {
             handleDoubleClick(GetMousePosition());
         }
         lastClickTime = currentTime;
+    }
+    if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+        handleRightClick(GetMousePosition());
     }
 
     if (checkWin()) {
@@ -996,14 +1025,31 @@ void Solitaire::draw() {
         }
     }
 
-    // Draw stock pile (no change needed)
+    // Draw stock pile
     float stockX = 50 * SCALE_FACTOR;
     float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
     if (!stock.empty()) {
         // Skip drawing the stock card if it's being dragged
         if (draggedSourcePile != &stock) {
-            stock.back().setPosition(stockX, stockY);
-            stock.back().draw();
+            // Draw a stack of cards for the stock pile
+            int numCards = stock.size();
+            int maxVisibleCards = 5;  // Maximum number of cards to show in the stack
+            int cardsToShow = std::min(numCards, maxVisibleCards);
+            
+            for (int i = 0; i < cardsToShow; i++) {
+                // Calculate offset for each card in the stack
+                float offsetX = i * 2;  // Small horizontal offset
+                float offsetY = i * 2;  // Small vertical offset
+                
+                // Get the card from the end of the stock pile
+                Card& card = stock[stock.size() - 1 - i];
+                card.setPosition(stockX + offsetX, stockY + offsetY);
+                card.draw();
+            }
+            
+            // Always show the total number of cards
+            DrawText(TextFormat("%d", numCards), 
+                    stockX + CARD_WIDTH - 55, stockY + CARD_HEIGHT - 20, 20, BLACK);
         }
     }
 

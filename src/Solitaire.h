@@ -49,6 +49,7 @@ public:
     void handleMouseDown(Vector2 pos);
     void handleMouseUp(Vector2 pos);
     void handleDoubleClick(Vector2 pos);
+    void handleRightClick(Vector2 pos);
     void update();
     void draw();
 
@@ -64,6 +65,7 @@ private:
     bool gameWon;
     Vector2 dragOffset;  // Track the offset between mouse and card position during drag
     double lastDealTime;  // Track when the last card was dealt to waste
+    Card* lastDrawnCard;  // Track the last card that was drawn from stock
 
     // Menu state
     bool menuOpen;
