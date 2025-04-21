@@ -24,7 +24,8 @@ const int BASE_MENU_ITEM_HEIGHT = 25;
 const int BASE_MENU_TEXT_PADDING = 5;
 const int BASE_MENU_DROPDOWN_HEIGHT = BASE_MENU_ITEM_HEIGHT * 4;  // 4 menu items
 
-const float SCALE_FACTOR = 1.5f;
+const float SCALE_FACTOR = 1.0f;
+const float MOBILE_SCALE_FACTOR = 0.65f;
 
 // Scaled constants (will be calculated in constructor)
 extern int CARD_WIDTH;
@@ -42,6 +43,8 @@ extern int MENU_DROPDOWN_HEIGHT;
 
 class Solitaire {
 public:
+    static float scaleFactor; // Static scale factor for the game
+    
     Solitaire();
     ~Solitaire();
 

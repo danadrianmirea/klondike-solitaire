@@ -32,6 +32,15 @@ int main(void) {
         return -1;
     }
 
+#ifdef EMSCRIPTEN_BUILD
+    // Force landscape orientation for web builds
+    EM_ASM(
+        screen.orientation.lock('landscape').catch(function() {
+            console.log('Orientation lock not supported');
+        });
+    );
+#endif
+
     // Force a frame to ensure OpenGL context is properly initialized
     BeginDrawing();
     ClearBackground(BLACK);

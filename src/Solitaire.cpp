@@ -11,6 +11,11 @@
 using json = nlohmann::json;
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
+
 // Define the scaled constants
 int CARD_WIDTH;
 int CARD_HEIGHT;
@@ -25,23 +30,49 @@ int MENU_DROPDOWN_HEIGHT;
 int MENU_TEXT_PADDING;
 int MENU_ITEM_HEIGHT;
 
+// Initialize static member variable
+float Solitaire::scaleFactor = SCALE_FACTOR;
+
 Solitaire::Solitaire() {
     // Initialize random seed
     srand(time(NULL));
 
-    // Set up window size
-    WINDOW_WIDTH = BASE_WINDOW_WIDTH;
-    WINDOW_HEIGHT = BASE_WINDOW_HEIGHT;
-
-    // Calculate scaling factor based on screen size
+    // Get screen dimensions
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
-    
-    float scaleFactor = std::min(
-        static_cast<float>(screenHeight) / BASE_WINDOW_HEIGHT,
-        static_cast<float>(screenWidth) / BASE_WINDOW_WIDTH
-    ) * SCALE_FACTOR;
-    
+
+    // Ensure landscape orientation
+    bool isPortrait = screenHeight > screenWidth;
+    if (isPortrait) {
+        // Swap dimensions if in portrait mode
+        std::swap(screenWidth, screenHeight);
+    }
+
+    // Calculate base scaling factors
+    float widthScale = static_cast<float>(screenWidth) / BASE_WINDOW_WIDTH;
+    float heightScale = static_cast<float>(screenHeight) / BASE_WINDOW_HEIGHT;
+
+    // Use the smaller scale factor to ensure everything fits
+    scaleFactor = SCALE_FACTOR;
+
+    // For mobile devices, we might want to scale down more
+#ifdef EMSCRIPTEN_BUILD
+    // Check if we're on a mobile device
+    bool isMobile = EM_ASM_INT({
+        return (navigator.userAgent.indexOf('Android') > -1 || 
+                navigator.userAgent.indexOf('iPhone') > -1 || 
+                navigator.userAgent.indexOf('iPad') > -1 || 
+                navigator.userAgent.indexOf('iPod') > -1 || 
+                navigator.userAgent.indexOf('BlackBerry') > -1 || 
+                navigator.userAgent.indexOf('IEMobile') > -1 || 
+                navigator.userAgent.indexOf('Opera Mini') > -1) ? 1 : 0;
+    });
+
+    if (isMobile) {
+        scaleFactor *= MOBILE_SCALE_FACTOR;
+    }
+#endif
+
     // Calculate scaled constants
     CARD_WIDTH = static_cast<int>(BASE_CARD_WIDTH * scaleFactor);
     CARD_HEIGHT = static_cast<int>(BASE_CARD_HEIGHT * scaleFactor);
@@ -57,6 +88,7 @@ Solitaire::Solitaire() {
     MENU_ITEM_HEIGHT = static_cast<int>(BASE_MENU_ITEM_HEIGHT * scaleFactor);
 
     // Set window size
+#ifndef EMSCRIPTEN_BUILD
     SetWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
     
     // Center window on screen
@@ -68,6 +100,7 @@ Solitaire::Solitaire() {
         (monitorWidth - WINDOW_WIDTH) / 2,
         (monitorHeight - WINDOW_HEIGHT) / 2
     );
+#endif
 
     // Initialize menu state
     menuOpen = false;
@@ -84,7 +117,7 @@ Solitaire::Solitaire() {
         ClearBackground(GREEN);
         
         const char* loadingText = "Loading...";
-        int fontSize = 40;
+        int fontSize = static_cast<int>(40 * scaleFactor);
         Vector2 textSize = MeasureTextEx(GetFontDefault(), loadingText, fontSize, 2);
         
         // Draw loading text
@@ -95,10 +128,10 @@ Solitaire::Solitaire() {
                 
         // Draw progress bar
         float progress = Card::getLoadingProgress();
-        int barWidth = 200;
-        int barHeight = 20;
+        int barWidth = static_cast<int>(200 * scaleFactor);
+        int barHeight = static_cast<int>(20 * scaleFactor);
         int barX = (WINDOW_WIDTH - barWidth) / 2;
-        int barY = (WINDOW_HEIGHT - textSize.y) / 2 + textSize.y + 20;
+        int barY = (WINDOW_HEIGHT - textSize.y) / 2 + textSize.y + 20 * scaleFactor;
         
         DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
         DrawRectangle(barX, barY, static_cast<int>(barWidth * progress), barHeight, WHITE);
@@ -203,8 +236,8 @@ void Solitaire::dealCards() {
 std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
     // Check tableau piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 7; i++) {
-        float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-        float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
+        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+        float y = 130 * scaleFactor + MENU_HEIGHT;  // Changed from 150 to 130
         
         // Check if click is within the pile's x-range
         if (x <= pos.x && pos.x <= x + CARD_WIDTH) {
@@ -232,8 +265,8 @@ std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
 
     // Check foundation piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 4; i++) {
-        float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-        float y = 10 * SCALE_FACTOR + MENU_HEIGHT;  // Add MENU_HEIGHT
+        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+        float y = 10 * scaleFactor + MENU_HEIGHT;  // Add MENU_HEIGHT
         
         // Check if click is within the pile's x-range and y-range
         if (x <= pos.x && pos.x <= x + CARD_WIDTH && y <= pos.y && pos.y <= y + CARD_HEIGHT) {
@@ -252,17 +285,17 @@ std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
         }
     }
 
-    // Check stock pile (no change needed)
-    float stockX = 50 * SCALE_FACTOR;
-    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+    // Check stock pile
+    float stockX = 50 * scaleFactor;
+    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
     Rectangle stockRect = { stockX, stockY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
     if (CheckCollisionPointRec(pos, stockRect)) {
         return &stock;
     }
 
-    // Check waste pile (no change needed)
+    // Check waste pile
     float wasteX = stockX + TABLEAU_SPACING;
-    float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+    float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
     if (!waste.empty()) {
         waste.back().setPosition(wasteX, wasteY);
         if (CheckCollisionPointRec(pos, waste.back().getRect())) {
@@ -345,8 +378,8 @@ bool Solitaire::moveCards(std::vector<Card>& sourcePile, std::vector<Card>& targ
 
 void Solitaire::handleMouseDown(Vector2 pos) {
     // Check stock pile first (no change needed)
-    float stockX = 50 * SCALE_FACTOR;
-    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+    float stockX = 50 * scaleFactor;
+    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
     Rectangle stockRect = { stockX, stockY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
     if (CheckCollisionPointRec(pos, stockRect)) {
         if (stock.empty() && !waste.empty()) {
@@ -376,8 +409,8 @@ void Solitaire::handleMouseDown(Vector2 pos) {
 
     // Find the card that was clicked (account for MENU_HEIGHT in foundation and tableau)
     for (int i = 0; i < 7; i++) {
-        float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-        float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
+        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+        float y = 130 * scaleFactor + MENU_HEIGHT;  // Changed from 150 to 130
         
         // Check if click is within the pile's x-range
         if (x <= pos.x && pos.x <= x + CARD_WIDTH) {
@@ -417,8 +450,8 @@ void Solitaire::handleMouseDown(Vector2 pos) {
     // Check foundation piles if no card was found in tableau
     if (draggedCards.empty()) {
         for (int i = 0; i < 4; i++) {
-            float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-            float y = 10 * SCALE_FACTOR + MENU_HEIGHT;
+            float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+            float y = 10 * scaleFactor + MENU_HEIGHT;
             
             if (!foundations[i].empty()) {
                 foundations[i].back().setPosition(x, y);
@@ -442,7 +475,7 @@ void Solitaire::handleMouseDown(Vector2 pos) {
     // Check waste pile if no card was found in tableau or foundation
     if (draggedCards.empty() && !waste.empty()) {
         float wasteX = stockX + TABLEAU_SPACING;
-        float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+        float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
         waste.back().setPosition(wasteX, wasteY);
         if (CheckCollisionPointRec(pos, waste.back().getRect())) {
             draggedCards.clear();
@@ -466,17 +499,17 @@ void Solitaire::handleMouseUp(Vector2 pos) {
     if (!targetPile) {
         // Return cards to original position
         if (draggedSourcePile == &waste) {
-            float stockX = 50 * SCALE_FACTOR;
+            float stockX = 50 * scaleFactor;
             float wasteX = stockX + TABLEAU_SPACING;
-            float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+            float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
             draggedCards[0].setPosition(wasteX, wasteY);
         } else if (draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
                   draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
             // Find the original foundation pile
             for (int i = 0; i < 4; i++) {
                 if (&foundations[i] == draggedSourcePile) {
-                    float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-                    float y = 10 * SCALE_FACTOR + MENU_HEIGHT;
+                    float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+                    float y = 10 * scaleFactor + MENU_HEIGHT;
                     draggedCards[0].setPosition(x, y);
                     break;
                 }
@@ -485,8 +518,8 @@ void Solitaire::handleMouseUp(Vector2 pos) {
             // Find the original tableau pile
             for (int i = 0; i < 7; i++) {
                 if (&tableau[i] == draggedSourcePile) {
-                    float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-                    float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
+                    float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+                    float y = 130 * scaleFactor + MENU_HEIGHT;  // Changed from 150 to 130
                     draggedCards[0].setPosition(x, y + draggedStartIndex * CARD_SPACING);
                     break;
                 }
@@ -531,17 +564,17 @@ void Solitaire::handleMouseUp(Vector2 pos) {
     } else {
         // Return cards to original position
         if (draggedSourcePile == &waste) {
-            float stockX = 50 * SCALE_FACTOR;
+            float stockX = 50 * scaleFactor;
             float wasteX = stockX + TABLEAU_SPACING;
-            float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+            float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
             draggedCards[0].setPosition(wasteX, wasteY);
         } else if (draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
                   draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
             // Find the original foundation pile
             for (int i = 0; i < 4; i++) {
                 if (&foundations[i] == draggedSourcePile) {
-                    float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-                    float y = 10 * SCALE_FACTOR + MENU_HEIGHT;
+                    float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+                    float y = 10 * scaleFactor + MENU_HEIGHT;
                     draggedCards[0].setPosition(x, y);
                     break;
                 }
@@ -550,8 +583,8 @@ void Solitaire::handleMouseUp(Vector2 pos) {
             // Find the original tableau pile
             for (int i = 0; i < 7; i++) {
                 if (&tableau[i] == draggedSourcePile) {
-                    float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-                    float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
+                    float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+                    float y = 130 * scaleFactor + MENU_HEIGHT;  // Changed from 150 to 130
                     draggedCards[0].setPosition(x, y + draggedStartIndex * CARD_SPACING);
                     break;
                 }
@@ -826,8 +859,8 @@ void Solitaire::handleMenuClick(Vector2 pos) {
 
 void Solitaire::handleRightClick(Vector2 pos) {
     // Check if clicking on stock pile area
-    float stockX = 50 * SCALE_FACTOR;
-    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+    float stockX = 50 * scaleFactor;
+    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
     Rectangle stockRect = { stockX, stockY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
     
     if (CheckCollisionPointRec(pos, stockRect) && lastDrawnCard != nullptr && !waste.empty() && lastDrawnCard == &waste.back()) {
@@ -889,8 +922,8 @@ void Solitaire::draw() {
 
     // Draw foundation piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 4; i++) {
-        float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-        float y = 10 * SCALE_FACTOR + MENU_HEIGHT;  // Add MENU_HEIGHT
+        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+        float y = 10 * scaleFactor + MENU_HEIGHT;  // Add MENU_HEIGHT
         if (!foundations[i].empty()) {
             // If this foundation pile is the source of the dragged card, show the card underneath
             if (draggedSourcePile == &foundations[i] && foundations[i].size() > 1) {
@@ -910,8 +943,8 @@ void Solitaire::draw() {
 
     // Draw tableau piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 7; i++) {
-        float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-        float y = 130 * SCALE_FACTOR + MENU_HEIGHT;
+        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+        float y = 130 * scaleFactor + MENU_HEIGHT;
          
         for (size_t j = 0; j < tableau[i].size(); j++) {
             // Skip drawing cards that are being dragged
@@ -924,8 +957,8 @@ void Solitaire::draw() {
     }
 
     // Draw stock pile
-    float stockX = 50 * SCALE_FACTOR;
-    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+    float stockX = 50 * scaleFactor;
+    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
     if (!stock.empty()) {
         // Skip drawing the stock card if it's being dragged
         if (draggedSourcePile != &stock) {
@@ -936,8 +969,8 @@ void Solitaire::draw() {
             
             for (int i = 0; i < cardsToShow; i++) {
                 // Calculate offset for each card in the stack
-                float offsetX = i * 2;  // Small horizontal offset
-                float offsetY = i * 2;  // Small vertical offset
+                float offsetX = i * 2 * scaleFactor;  // Small horizontal offset
+                float offsetY = i * 2 * scaleFactor;  // Small vertical offset
                 
                 // Get the card from the end of the stock pile
                 Card& card = stock[stock.size() - 1 - i];
@@ -946,14 +979,17 @@ void Solitaire::draw() {
             }
             
             // Always show the total number of cards
+            int fontSize = static_cast<int>(20 * scaleFactor);
             DrawText(TextFormat("%d", numCards), 
-                    stockX + CARD_WIDTH - 55, stockY + CARD_HEIGHT - 20, 20, BLACK);
+                    stockX + CARD_WIDTH - 55 * scaleFactor, 
+                    stockY + CARD_HEIGHT - 20 * scaleFactor, 
+                    fontSize, BLACK);
         }
     }
 
     // Draw waste pile
     float wasteX = stockX + TABLEAU_SPACING;
-    float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
+    float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
     if (!waste.empty()) {
         // Skip drawing the waste card if it's being dragged
         if (draggedSourcePile != &waste) {
@@ -978,20 +1014,22 @@ void Solitaire::draw() {
     // Draw all UI elements last
     // Draw menu bar
     DrawRectangle(0, 0, WINDOW_WIDTH, MENU_HEIGHT, DARKGRAY);
-    DrawText("File", MENU_FILE_X + MENU_TEXT_PADDING, MENU_TEXT_PADDING, 20, WHITE);
+    int fontSize = static_cast<int>(20 * scaleFactor);
+    DrawText("File", MENU_FILE_X + MENU_TEXT_PADDING, MENU_TEXT_PADDING, fontSize, WHITE);
     
     // Draw menu items when File is clicked
     if (menuOpen) {
         DrawRectangle(MENU_FILE_X, MENU_HEIGHT, MENU_FILE_WIDTH, MENU_DROPDOWN_HEIGHT, DARKGRAY);
-        DrawText("New Game", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_TEXT_PADDING, 20, WHITE);
+        DrawText("New Game", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_TEXT_PADDING, fontSize, WHITE);
 #ifndef EMSCRIPTEN_BUILD        
-        DrawText("Save", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT + MENU_TEXT_PADDING, 20, WHITE);
-        DrawText("Load", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 2 + MENU_TEXT_PADDING, 20, WHITE);
-        DrawText("Quit", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 3 + MENU_TEXT_PADDING, 20, WHITE);
+        DrawText("Save", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT + MENU_TEXT_PADDING, fontSize, WHITE);
+        DrawText("Load", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 2 + MENU_TEXT_PADDING, fontSize, WHITE);
+        DrawText("Quit", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 3 + MENU_TEXT_PADDING, fontSize, WHITE);
 #endif
     }
 
     if (gameWon) {
-        DrawText("You Win!", WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2, 40, WHITE);
+        fontSize = static_cast<int>(40 * scaleFactor);
+        DrawText("You Win!", WINDOW_WIDTH/2 - 100 * scaleFactor, WINDOW_HEIGHT/2, fontSize, WHITE);
     }
 } 

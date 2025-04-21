@@ -6,6 +6,9 @@
 #include <thread>
 #include <future>
 
+// Forward declarations
+class Solitaire;
+
 class Card {
 private:
     std::string suit;
@@ -21,6 +24,8 @@ private:
     static void loadTexture(const std::string& imagePath);
 
 public:
+    static bool isMobile;  // Flag to track if running on mobile device
+
     Card(const std::string& suit, const std::string& value, const std::string& imagePath);
     Card(const Card& other);  // Copy constructor
     Card& operator=(const Card& other);  // Assignment operator
@@ -42,4 +47,5 @@ public:
     static void preloadTextures();  // New function to pre-load all textures
     static bool areTexturesLoaded() { return texturesLoaded; }  // Check if textures are loaded
     static float getLoadingProgress();
+    static void setIsMobile(int value) { isMobile = value != 0; }
 }; 

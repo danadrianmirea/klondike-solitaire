@@ -1,5 +1,5 @@
 #include "Card.h"
-#include "Solitaire.h" // For CARD_WIDTH and CARD_HEIGHT
+#include "Solitaire.h"
 #include <algorithm>
 #include <iostream>
 #include <filesystem>
@@ -10,6 +10,7 @@
 Texture2D Card::cardBack = {0};
 std::unordered_map<std::string, Texture2D> Card::textureCache;
 bool Card::texturesLoaded = false;
+bool Card::isMobile = false;  // Initialize isMobile to false
 
 // Add new static member to track loading progress
 static std::atomic<int> loadedTexturesCount(0);
@@ -25,8 +26,12 @@ void Card::loadTexture(const std::string& imagePath) {
         return;
     }
 
-    // Scale the image
-    ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
+    // Scale the image based on Solitaire's current scaleFactor
+    int scaledWidth = static_cast<int>(BASE_CARD_WIDTH * Solitaire::scaleFactor);
+    int scaledHeight = static_cast<int>(BASE_CARD_HEIGHT * Solitaire::scaleFactor);
+    
+    // Resize the image to match the scaled dimensions
+    ImageResize(&img, scaledWidth, scaledHeight);
 
     // Create texture from scaled image
     Texture2D texture = LoadTextureFromImage(img);
@@ -103,7 +108,11 @@ void Card::loadCardBack(const std::string &imagePath) {
                 return;
             }
 
-            ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
+            // Scale the image based on Solitaire's current scaleFactor
+            int scaledWidth = static_cast<int>(BASE_CARD_WIDTH * Solitaire::scaleFactor);
+            int scaledHeight = static_cast<int>(BASE_CARD_HEIGHT * Solitaire::scaleFactor);
+            
+            ImageResize(&img, scaledWidth, scaledHeight);
             cardBack = LoadTextureFromImage(img);
             UnloadImage(img);
         }
