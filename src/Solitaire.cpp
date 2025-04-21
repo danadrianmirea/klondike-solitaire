@@ -345,10 +345,12 @@ std::string Solitaire::getNextValue(const std::string& value) {
 
 bool Solitaire::canMoveToFoundation(const Card& card, const std::vector<Card>& targetPile) {
     if (targetPile.empty()) {
-        return card.getValue() == 1; // Only aces can start a foundation
+        // Only aces can start a foundation pile
+        return card.getValue() == 1; 
     }
     
     const Card& topCard = targetPile.back();
+    // Cards must be of the same suit and in ascending order (A,2,3,...)
     return (card.getSuit() == topCard.getSuit()) && (card.getValue() == topCard.getValue() + 1);
 }
 
@@ -544,25 +546,34 @@ void Solitaire::handleMouseUp(Vector2 pos) {
         }
     }
 
-    // Check if we can move to tableau
-    bool canMove = canMoveToTableau(draggedCards[0], *targetPile);
-
-    if (canMove) {
-        // If dragging from waste pile or foundation pile, only move the top card
-        if (draggedSourcePile == &waste || 
-            draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
-            draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
+    // Handle foundation pile placement - only single cards, must follow suit and sequence
+    if (isFoundationPile) {
+        // Only single cards can be moved to foundation
+        if (draggedCards.size() == 1 && canMoveToFoundation(draggedCards[0], *targetPile)) {
             moveCards(*draggedSourcePile, *targetPile, draggedSourcePile->size() - 1);
         } else {
-            moveCards(*draggedSourcePile, *targetPile, draggedStartIndex);
+            // Invalid move to foundation
+            returnDraggedCards();
         }
     }
-    // Check if we can move to foundation (only single cards can be moved to foundation)
-    else if (isFoundationPile && draggedCards.size() == 1 && canMoveToFoundation(draggedCards[0], *targetPile)) {
-        moveCards(*draggedSourcePile, *targetPile, draggedSourcePile->size() - 1);
-    } else {
-        // Return cards to original position
-        returnDraggedCards();
+    // Handle tableau pile placement
+    else {
+        // Check if we can move to tableau
+        bool canMove = canMoveToTableau(draggedCards[0], *targetPile);
+
+        if (canMove) {
+            // If dragging from waste pile or foundation pile, only move the top card
+            if (draggedSourcePile == &waste || 
+                draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
+                draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
+                moveCards(*draggedSourcePile, *targetPile, draggedSourcePile->size() - 1);
+            } else {
+                moveCards(*draggedSourcePile, *targetPile, draggedStartIndex);
+            }
+        } else {
+            // Invalid move to tableau
+            returnDraggedCards();
+        }
     }
 
     // Clean up the dragged state
