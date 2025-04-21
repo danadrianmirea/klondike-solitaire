@@ -26,41 +26,21 @@ int MENU_TEXT_PADDING;
 int MENU_ITEM_HEIGHT;
 
 Solitaire::Solitaire() {
-#if DEBUG == 1
-    std::cout << "Starting Solitaire constructor..." << std::endl;
-#endif
-
     // Initialize random seed
     srand(time(NULL));
-#if DEBUG == 1
-    std::cout << "Random seed initialized: " << time(NULL) << std::endl;
-#endif
 
     // Set up window size
     WINDOW_WIDTH = BASE_WINDOW_WIDTH;
     WINDOW_HEIGHT = BASE_WINDOW_HEIGHT;
 
-#if DEBUG == 1
-    std::cout << "Screen dimensions: " << WINDOW_WIDTH << "x" << WINDOW_HEIGHT << std::endl;
-    std::cout << "Scaling factor: " << SCALE_FACTOR << std::endl;
-    std::cout << "Scaled constants:" << std::endl;
-    std::cout << "  CARD_WIDTH: " << CARD_WIDTH << std::endl;
-    std::cout << "  CARD_HEIGHT: " << CARD_HEIGHT << std::endl;
-    std::cout << "  CARD_SPACING: " << CARD_SPACING << std::endl;
-    std::cout << "  WINDOW_WIDTH: " << WINDOW_WIDTH << std::endl;
-    std::cout << "  WINDOW_HEIGHT: " << WINDOW_HEIGHT << std::endl;
-#endif
-
     // Calculate scaling factor based on screen size
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
-    std::cout << "Screen dimensions: " << screenWidth << "x" << screenHeight << std::endl;
     
     float scaleFactor = std::min(
         static_cast<float>(screenHeight) / BASE_WINDOW_HEIGHT,
         static_cast<float>(screenWidth) / BASE_WINDOW_WIDTH
     ) * SCALE_FACTOR;
-    std::cout << "Scale factor calculated: " << scaleFactor << std::endl;
     
     // Calculate scaled constants
     CARD_WIDTH = static_cast<int>(BASE_CARD_WIDTH * scaleFactor);
@@ -76,13 +56,6 @@ Solitaire::Solitaire() {
     MENU_TEXT_PADDING = static_cast<int>(BASE_MENU_TEXT_PADDING * scaleFactor);
     MENU_ITEM_HEIGHT = static_cast<int>(BASE_MENU_ITEM_HEIGHT * scaleFactor);
 
-    std::cout << "Scaled constants:" << std::endl;
-    std::cout << "  CARD_WIDTH: " << CARD_WIDTH << std::endl;
-    std::cout << "  CARD_HEIGHT: " << CARD_HEIGHT << std::endl;
-    std::cout << "  WINDOW_WIDTH: " << WINDOW_WIDTH << std::endl;
-    std::cout << "  WINDOW_HEIGHT: " << WINDOW_HEIGHT << std::endl;
-
-#ifndef EMSCRIPTEN_BUILD
     // Set window size
     SetWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
     
@@ -90,50 +63,52 @@ Solitaire::Solitaire() {
     int monitor = GetCurrentMonitor();
     int monitorWidth = GetMonitorWidth(monitor);
     int monitorHeight = GetMonitorHeight(monitor);
-    std::cout << "Monitor dimensions: " << monitorWidth << "x" << monitorHeight << std::endl;
     
     SetWindowPosition(
         (monitorWidth - WINDOW_WIDTH) / 2,
         (monitorHeight - WINDOW_HEIGHT) / 2
     );
-    std::cout << "Window positioned at: (" << (monitorWidth - WINDOW_WIDTH) / 2 
-              << ", " << (monitorHeight - WINDOW_HEIGHT) / 2 << ")" << std::endl;
-#endif
 
     // Initialize menu state
     menuOpen = false;
-#if DEBUG == 1
-    std::cout << "Menu initialized" << std::endl;
-    std::cout << "Loading textures..." << std::endl;
-#endif
 
     // Load card back texture
-    std::cout << "Loading card back texture..." << std::endl;
     Card::loadCardBack("assets/cards/card_back_red.png");
     
-    // Preload all card textures
-    std::cout << "Preloading card textures..." << std::endl;
+    // Start preloading textures in background
     Card::preloadTextures();
     
-    // Keep showing loading screen until textures are fully loaded
-    std::cout << "Waiting for textures to load..." << std::endl;
+    // Show loading screen until textures are fully loaded
     while (!Card::areTexturesLoaded()) {
         BeginDrawing();
         ClearBackground(GREEN);
-        DrawText("Loading textures...", WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2 - 20, 20, WHITE);
+        
+        const char* loadingText = "Loading...";
+        int fontSize = 40;
+        Vector2 textSize = MeasureTextEx(GetFontDefault(), loadingText, fontSize, 2);
+        
+        // Draw loading text
+        DrawText(loadingText, 
+                (WINDOW_WIDTH - textSize.x) / 2,
+                (WINDOW_HEIGHT - textSize.y) / 2,
+                fontSize, WHITE);
+                
+        // Draw progress bar
+        float progress = Card::getLoadingProgress();
+        int barWidth = 200;
+        int barHeight = 20;
+        int barX = (WINDOW_WIDTH - barWidth) / 2;
+        int barY = (WINDOW_HEIGHT - textSize.y) / 2 + textSize.y + 20;
+        
+        DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
+        DrawRectangle(barX, barY, static_cast<int>(barWidth * progress), barHeight, WHITE);
+        DrawRectangleLines(barX, barY, barWidth, barHeight, BLACK);
+        
         EndDrawing();
     }
-    std::cout << "All textures loaded successfully" << std::endl;
     
     // Now that textures are loaded, initialize the game
-    std::cout << "Initializing game..." << std::endl;
     resetGame();
-    
-#if DEBUG == 1
-    std::cout << "Textures loaded successfully" << std::endl;
-    std::cout << "Game initialized" << std::endl;
-    std::cout << "Solitaire constructor completed" << std::endl;
-#endif
 }
 
 Solitaire::~Solitaire() {
@@ -184,7 +159,6 @@ void Solitaire::loadCards() {
 
     // Get the current working directory
     std::string currentDir = GetWorkingDirectory();
-    std::cout << "Current working directory: " << currentDir << std::endl;
 
     for (const auto& suit : suits) {
         for (const auto& value : values) {
@@ -308,35 +282,14 @@ std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
 bool Solitaire::canMoveToTableau(const Card& card, const std::vector<Card>& targetPile) {
     if (targetPile.empty()) {
         // Only kings can be placed on empty tableau
-#if DEBUG == 1
-        std::cout << "Checking if card can be placed on empty tableau. Card value: " << card.getValue() 
-                  << ", Card string value: " << card.getSuit() << " " << card.getValue() << std::endl;
-#endif
         return card.getValue() == 13;  // 13 represents king
     }
     
     const Card& topCard = targetPile.back();
     
-#if DEBUG == 1
-    std::cout << "\nTableau move check details:" << std::endl;
-    std::cout << "Moving card: " << card.getSuit() << " " << card.getValue() << " (value: " << card.getValue() << ")" << std::endl;
-    std::cout << "Target card: " << topCard.getSuit() << " " << topCard.getValue() << " (value: " << topCard.getValue() << ")" << std::endl;
-    std::cout << "Card colors - Moving: " << (card.isRed() ? "red" : "black") 
-              << ", Target: " << (topCard.isRed() ? "red" : "black") << std::endl;
-    std::cout << "Value check - Moving card value: " << card.getValue() 
-              << ", Target card value - 1: " << (topCard.getValue() - 1) << std::endl;
-#endif
-    
     // Check if colors are different and values are in sequence
     bool colorsDifferent = (card.isRed() != topCard.isRed());
     bool valuesInSequence = (card.getValue() == topCard.getValue() - 1);
-    
-#if DEBUG == 1
-    std::cout << "Move validation:" << std::endl;
-    std::cout << "Colors different: " << (colorsDifferent ? "yes" : "no") << std::endl;
-    std::cout << "Values in sequence: " << (valuesInSequence ? "yes" : "no") << std::endl;
-    std::cout << "Final result: " << (colorsDifferent && valuesInSequence ? "valid" : "invalid") << std::endl;
-#endif
     
     return colorsDifferent && valuesInSequence;
 }
@@ -368,34 +321,13 @@ bool Solitaire::canMoveToFoundation(const Card& card, const std::vector<Card>& t
 
 bool Solitaire::moveCards(std::vector<Card>& sourcePile, std::vector<Card>& targetPile, 
                          int startIndex, int endIndex) {
-#if DEBUG == 1
-    std::cout << "\nAttempting to move cards:" << std::endl;
-    std::cout << "Source pile size: " << sourcePile.size() << std::endl;
-    std::cout << "Target pile size: " << targetPile.size() << std::endl;
-    std::cout << "Start index: " << startIndex << std::endl;
-    std::cout << "End index: " << endIndex << std::endl;
-    if (!sourcePile.empty()) {
-        std::cout << "Top card of source pile: " << sourcePile.back().getSuit() << " " << sourcePile.back().getValue() << std::endl;
-    }
-    if (!targetPile.empty()) {
-        std::cout << "Top card of target pile: " << targetPile.back().getSuit() << " " << targetPile.back().getValue() << std::endl;
-    }
-#endif
-
     if (startIndex < 0 || startIndex >= sourcePile.size()) {
-#if DEBUG == 1
-        std::cout << "Invalid start index, move failed" << std::endl;
-#endif
         return false;
     }
 
     if (endIndex == -1) {
         endIndex = sourcePile.size() - 1;
     }
-
-#if DEBUG == 1
-    std::cout << "Moving " << (endIndex - startIndex + 1) << " cards" << std::endl;
-#endif
 
     // Move cards
     for (int i = startIndex; i <= endIndex; i++) {
@@ -408,12 +340,6 @@ bool Solitaire::moveCards(std::vector<Card>& sourcePile, std::vector<Card>& targ
         sourcePile.back().flip();
     }
 
-#if DEBUG == 1
-    std::cout << "Move completed successfully" << std::endl;
-    std::cout << "New source pile size: " << sourcePile.size() << std::endl;
-    std::cout << "New target pile size: " << targetPile.size() << std::endl;
-#endif
-
     return true;
 }
 
@@ -423,21 +349,6 @@ void Solitaire::handleMouseDown(Vector2 pos) {
     float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
     Rectangle stockRect = { stockX, stockY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
     if (CheckCollisionPointRec(pos, stockRect)) {
-#if DEBUG == 1
-        // Debug print stock and waste state
-        std::cout << "\nBefore stock pile interaction:" << std::endl;
-        std::cout << "Stock pile (" << stock.size() << " cards): ";
-        for (const auto& card : stock) {
-            std::cout << card.getValue() << " of " << card.getSuit() << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "Waste pile (" << waste.size() << " cards): ";
-        for (const auto& card : waste) {
-            std::cout << card.getValue() << " of " << card.getSuit() << " ";
-        }
-        std::cout << std::endl;
-#endif
-
         if (stock.empty() && !waste.empty()) {
             // Only restore waste cards if stock is empty and waste is not empty
             while (!waste.empty()) {
@@ -447,9 +358,6 @@ void Solitaire::handleMouseDown(Vector2 pos) {
                 stock.push_back(card);
             }
             lastDrawnCard = nullptr;  // Reset last drawn card when recycling waste
-#if DEBUG == 1
-            std::cout << "Restored waste cards to stock" << std::endl;
-#endif
             return;  // Return here to prevent any further handling
         }
         
@@ -461,25 +369,7 @@ void Solitaire::handleMouseDown(Vector2 pos) {
             waste.push_back(card);
             lastDrawnCard = &waste.back();  // Track the last drawn card
             lastDealTime = GetTime();
-#if DEBUG == 1
-            std::cout << "Dealt card: " << card.getValue() << " of " << card.getSuit() << std::endl;
-#endif
         }
-
-#if DEBUG == 1
-        // Debug print stock and waste state after interaction
-        std::cout << "\nAfter stock pile interaction:" << std::endl;
-        std::cout << "Stock pile (" << stock.size() << " cards): ";
-        for (const auto& card : stock) {
-            std::cout << card.getValue() << " of " << card.getSuit() << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "Waste pile (" << waste.size() << " cards): ";
-        for (const auto& card : waste) {
-            std::cout << card.getValue() << " of " << card.getSuit() << " ";
-        }
-        std::cout << std::endl << std::endl;
-#endif
 
         return;  // Return after handling stock pile
     }
@@ -574,9 +464,6 @@ void Solitaire::handleMouseUp(Vector2 pos) {
 
     std::vector<Card>* targetPile = getPileAtPos(pos);
     if (!targetPile) {
-#if DEBUG == 1
-        std::cout << "\nNo target pile found at position" << std::endl;
-#endif
         // Return cards to original position
         if (draggedSourcePile == &waste) {
             float stockX = 50 * SCALE_FACTOR;
@@ -611,9 +498,6 @@ void Solitaire::handleMouseUp(Vector2 pos) {
     }
 
     if (targetPile == draggedSourcePile) {
-#if DEBUG == 1
-        std::cout << "\nTarget pile is same as source pile, cancelling move" << std::endl;
-#endif
         draggedCards.clear();
         draggedSourcePile = nullptr;
         return;
@@ -630,15 +514,8 @@ void Solitaire::handleMouseUp(Vector2 pos) {
 
     // Check if we can move to tableau
     bool canMove = canMoveToTableau(draggedCards[0], *targetPile);
-#if DEBUG == 1
-    std::cout << "\nMove validation result: " << (canMove ? "valid" : "invalid") << std::endl;
-    std::cout << "Target pile is " << (isFoundationPile ? "foundation" : "tableau") << std::endl;
-#endif
 
     if (canMove) {
-#if DEBUG == 1
-        std::cout << "Attempting to move cards to tableau" << std::endl;
-#endif
         // If dragging from waste pile or foundation pile, only move the top card
         if (draggedSourcePile == &waste || 
             draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
@@ -650,14 +527,8 @@ void Solitaire::handleMouseUp(Vector2 pos) {
     }
     // Check if we can move to foundation (only single cards can be moved to foundation)
     else if (isFoundationPile && draggedCards.size() == 1 && canMoveToFoundation(draggedCards[0], *targetPile)) {
-#if DEBUG == 1
-        std::cout << "Attempting to move card to foundation" << std::endl;
-#endif
         moveCards(*draggedSourcePile, *targetPile, draggedSourcePile->size() - 1);
     } else {
-#if DEBUG == 1
-        std::cout << "Invalid move, returning cards to original position" << std::endl;
-#endif
         // Return cards to original position
         if (draggedSourcePile == &waste) {
             float stockX = 50 * SCALE_FACTOR;
@@ -786,13 +657,6 @@ void Solitaire::saveGame() {
     if (file.is_open()) {
         file << gameState.dump(4);
         file.close();
-#if DEBUG == 1
-        std::cout << "Game saved successfully" << std::endl;
-#endif
-    } else {
-#if DEBUG == 1
-        std::cerr << "Failed to save game" << std::endl;
-#endif
     }
 #endif
 }
@@ -801,9 +665,6 @@ bool Solitaire::loadGame() {
 #ifndef EMSCRIPTEN_BUILD
     std::ifstream file("solitaire_save.txt");
     if (!file.is_open()) {
-#if DEBUG == 1
-        std::cerr << "No save file found" << std::endl;
-#endif
         return false;
     }
     
@@ -913,14 +774,8 @@ bool Solitaire::loadGame() {
             waste.push_back(card);
         }
         
-#if DEBUG == 1
-        std::cout << "Game loaded successfully" << std::endl;
-#endif
         return true;
     } catch (const std::exception& e) {
-#if DEBUG == 1
-        std::cerr << "Error loading game: " << e.what() << std::endl;
-#endif
         return false;
     }
 #endif
@@ -982,14 +837,6 @@ void Solitaire::handleRightClick(Vector2 pos) {
         card.flip();  // Flip face down
         stock.push_back(card);
         lastDrawnCard = nullptr;  // Reset last drawn card after undo
-
-        // If there are more cards in waste, make sure the new top card is face up
-        if (!waste.empty() && !waste.back().isFaceUp()) {
-            waste.back().flip();
-        }
-#if DEBUG == 1
-        std::cout << "Undo: Moved last drawn card back to stock pile" << std::endl;
-#endif
     }
 }
 
@@ -998,29 +845,10 @@ void Solitaire::update() {
     frameCount++;
     
     if (frameCount % 60 == 0) {  // Log every second (assuming 60 FPS)
-#if DEBUG == 1
-        std::cout << "Game state update:" << std::endl;
-        std::cout << "  Stock size: " << stock.size() << std::endl;
-        std::cout << "  Waste size: " << waste.size() << std::endl;
-        std::cout << "  Tableau sizes: ";
-        for (const auto& pile : tableau) {
-            std::cout << pile.size() << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "  Foundation sizes: ";
-        for (const auto& pile : foundations) {
-            std::cout << pile.size() << " ";
-        }
-        std::cout << std::endl;
-#endif
     }
 
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-#if DEBUG == 1
-        std::cout << "Left click at: " << GetMouseX() << ", " << GetMouseY() << std::endl;
-#endif
         Vector2 pos = GetMousePosition();
-        std::cout << "Left click at: (" << pos.x << ", " << pos.y << ")" << std::endl;
         
         // Check menu first
         handleMenuClick(pos);
@@ -1031,11 +859,7 @@ void Solitaire::update() {
         }
     }
     if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-#if DEBUG == 1
-        std::cout << "Left release at: " << GetMouseX() << ", " << GetMouseY() << std::endl;
-#endif
         Vector2 pos = GetMousePosition();
-        std::cout << "Left release at: (" << pos.x << ", " << pos.y << ")" << std::endl;
         handleMouseUp(pos);
     }
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && GetMouseDelta().x == 0 && GetMouseDelta().y == 0) {
@@ -1043,24 +867,16 @@ void Solitaire::update() {
         static double lastClickTime = 0;
         double currentTime = GetTime();
         if (currentTime - lastClickTime < 0.3) {  // 300ms threshold for double click
-            std::cout << "Double click detected" << std::endl;
             handleDoubleClick(GetMousePosition());
         }
         lastClickTime = currentTime;
     }
     if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-#if DEBUG == 1
-        std::cout << "Right click at: " << GetMouseX() << ", " << GetMouseY() << std::endl;
-#endif
         Vector2 pos = GetMousePosition();
-        std::cout << "Right click at: (" << pos.x << ", " << pos.y << ")" << std::endl;
         handleRightClick(pos);
     }
 
     if (checkWin()) {
-        if (!gameWon) {  // Only log when game is first won
-            std::cout << "=== GAME WON! ===" << std::endl;
-        }
         gameWon = true;
     }
 }
@@ -1068,16 +884,6 @@ void Solitaire::update() {
 void Solitaire::draw() {
     static int drawCount = 0;
     drawCount++;
-    
-    if (drawCount % 60 == 0) {  // Log every second (assuming 60 FPS)
-#if DEBUG == 1
-        std::cout << "Drawing frame:" << std::endl;
-        std::cout << "  Window dimensions: " << GetScreenWidth() << "x" << GetScreenHeight() << std::endl;
-        std::cout << "  Menu state: " << (menuOpen ? "open" : "closed") << std::endl;
-        std::cout << "  Game state: " << (gameWon ? "won" : "in progress") << std::endl;
-        std::cout << "  Dragged cards: " << draggedCards.size() << std::endl;
-#endif
-    }
 
     ClearBackground(GREEN);
 
@@ -1105,7 +911,7 @@ void Solitaire::draw() {
     // Draw tableau piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 7; i++) {
         float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-        float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
+        float y = 130 * SCALE_FACTOR + MENU_HEIGHT;
          
         for (size_t j = 0; j < tableau[i].size(); j++) {
             // Skip drawing cards that are being dragged
@@ -1145,7 +951,7 @@ void Solitaire::draw() {
         }
     }
 
-    // Draw waste pile (no change needed)
+    // Draw waste pile
     float wasteX = stockX + TABLEAU_SPACING;
     float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
     if (!waste.empty()) {
@@ -1178,9 +984,11 @@ void Solitaire::draw() {
     if (menuOpen) {
         DrawRectangle(MENU_FILE_X, MENU_HEIGHT, MENU_FILE_WIDTH, MENU_DROPDOWN_HEIGHT, DARKGRAY);
         DrawText("New Game", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_TEXT_PADDING, 20, WHITE);
+#ifndef EMSCRIPTEN_BUILD        
         DrawText("Save", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT + MENU_TEXT_PADDING, 20, WHITE);
         DrawText("Load", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 2 + MENU_TEXT_PADDING, 20, WHITE);
         DrawText("Quit", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 3 + MENU_TEXT_PADDING, 20, WHITE);
+#endif
     }
 
     if (gameWon) {

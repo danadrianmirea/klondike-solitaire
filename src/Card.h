@@ -41,4 +41,5 @@ public:
     static void unloadAllTextures();
     static void preloadTextures();  // New function to pre-load all textures
     static bool areTexturesLoaded() { return texturesLoaded; }  // Check if textures are loaded
+    static float getLoadingProgress();
 }; 

@@ -3,49 +3,59 @@
 #include <algorithm>
 #include <iostream>
 #include <filesystem>
+#include <thread>
+#include <atomic>
 
 // Initialize static members
 Texture2D Card::cardBack = {0};
 std::unordered_map<std::string, Texture2D> Card::textureCache;
 bool Card::texturesLoaded = false;
 
+// Add new static member to track loading progress
+static std::atomic<int> loadedTexturesCount(0);
+static std::atomic<bool> loadingInProgress(false);
+
 void Card::loadTexture(const std::string& imagePath) {
-    if (FileExists(imagePath.c_str())) {
-        Image img = LoadImage(imagePath.c_str());
-        if (img.data == NULL) {
-            std::cerr << "Failed to load image: " << imagePath << std::endl;
-            return;
-        }
-
-        // Scale the image
-        ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
-
-        // Create texture from scaled image
-        Texture2D texture = LoadTextureFromImage(img);
-        if (texture.id == 0) {
-            std::cerr << "Failed to create texture from image: " << imagePath << std::endl;
-            UnloadImage(img);
-            return;
-        }
-
-        // Cache the texture
-        textureCache[imagePath] = texture;
-
-        // Clean up
-        UnloadImage(img);
-    } else {
-        std::cerr << "Card image file not found: " << imagePath << std::endl;
+    if (!FileExists(imagePath.c_str())) {
+        return;
     }
+
+    Image img = LoadImage(imagePath.c_str());
+    if (img.data == NULL) {
+        return;
+    }
+
+    // Scale the image
+    ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
+
+    // Create texture from scaled image
+    Texture2D texture = LoadTextureFromImage(img);
+    if (texture.id == 0) {
+        UnloadImage(img);
+        return;
+    }
+
+    // Cache the texture
+    textureCache[imagePath] = texture;
+
+    // Clean up
+    UnloadImage(img);
 }
 
 void Card::preloadTextures() {
-    if (texturesLoaded) return;
+    if (texturesLoaded || loadingInProgress) {
+        return;
+    }
+
+    loadingInProgress = true;
+    loadedTexturesCount = 0;
 
     const std::string suits[] = {"hearts", "diamonds", "clubs", "spades"};
     const std::string values[] = {"ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king"};
 
     // Get the current working directory
     std::string currentDir = GetWorkingDirectory();
+
     std::vector<std::string> imagePaths;
 
     // Collect all image paths
@@ -59,12 +69,30 @@ void Card::preloadTextures() {
         }
     }
 
-    // Load textures sequentially to avoid WebGL context issues
-    for (const auto& imagePath : imagePaths) {
-        loadTexture(imagePath);
+#ifdef __EMSCRIPTEN__
+    // For web builds, load textures sequentially
+    for (const auto& path : imagePaths) {
+        loadTexture(path);
+        loadedTexturesCount++;
     }
-
     texturesLoaded = true;
+    loadingInProgress = false;
+#else
+    // For native builds, use a background thread
+    std::thread([imagePaths]() {
+        for (const auto& path : imagePaths) {
+            loadTexture(path);
+            loadedTexturesCount++;
+        }
+        texturesLoaded = true;
+        loadingInProgress = false;
+    }).detach();
+#endif
+}
+
+float Card::getLoadingProgress() {
+    if (!loadingInProgress) return 1.0f;
+    return static_cast<float>(loadedTexturesCount) / 52.0f; // 52 cards total
 }
 
 void Card::loadCardBack(const std::string &imagePath) {
@@ -72,19 +100,12 @@ void Card::loadCardBack(const std::string &imagePath) {
         if (FileExists(imagePath.c_str())) {
             Image img = LoadImage(imagePath.c_str());
             if (img.data == NULL) {
-                std::cerr << "Failed to load card back image: " << imagePath << std::endl;
                 return;
             }
 
             ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
             cardBack = LoadTextureFromImage(img);
             UnloadImage(img);
-
-            if (cardBack.id == 0) {
-                std::cerr << "Failed to load card back texture: " << imagePath << std::endl;
-            }
-        } else {
-            std::cerr << "Card back image file not found: " << imagePath << std::endl;
         }
     }
 }
@@ -170,26 +191,27 @@ void Card::setPosition(float x, float y) {
 }
 
 void Card::draw() const {
-  if (faceUp) {
-    if (image.id != 0) {
-      DrawTexture(image, (int)rect.x, (int)rect.y, WHITE);
+    if (faceUp) {
+        if (image.id != 0) {
+            // Validate texture dimensions
+            if (image.width <= 0 || image.height <= 0) {
+                DrawRectangle((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height, BLUE);
+                DrawRectangleLines((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height, BLACK);
+                return;
+            }
+            DrawTexture(image, (int)rect.x, (int)rect.y, WHITE);
+        } else {
+            // Fallback if texture failed to load
+            DrawRectangle((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height, BLUE);
+            DrawRectangleLines((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height, BLACK);
+        }
     } else {
-      // Fallback if texture failed to load
-      DrawRectangle((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height,
-                    BLUE);
-      DrawRectangleLines((int)rect.x, (int)rect.y, (int)rect.width,
-                         (int)rect.height, BLACK);
+        if (cardBack.id != 0) {
+            DrawTexture(cardBack, (int)rect.x, (int)rect.y, WHITE);
+        } else {
+            // Fallback if card back texture failed to load
+            DrawRectangle((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height, RED);
+            DrawRectangleLines((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height, BLACK);
+        }
     }
-  } else {
-    // Draw card back texture
-    if (cardBack.id != 0) {
-      DrawTexture(cardBack, (int)rect.x, (int)rect.y, WHITE);
-    } else {
-      // Fallback to simple rectangle if texture not loaded
-      DrawRectangle((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height,
-                    RED);
-      DrawRectangleLines((int)rect.x, (int)rect.y, (int)rect.width,
-                         (int)rect.height, BLACK);
-    }
-  }
 }
