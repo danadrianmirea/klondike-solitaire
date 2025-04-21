@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(raylib_solitaire)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set default build type to Debug if not specified
@@ -21,26 +21,8 @@ else()
 endif()
 
 # Set raylib path - adjust this to your raylib installation path
-set(RAYLIB_PATH "C:/raylib" CACHE PATH "Path to raylib installation")
+set(RAYLIB_PATH "C:/raylib/raylib" CACHE PATH "Path to raylib source directory")
 
-# Debug messages to help locate raylib
-message(STATUS "Looking for raylib in: ${RAYLIB_PATH}")
-
-# Find raylib
-find_path(RAYLIB_INCLUDE_DIR raylib.h
-    PATHS 
-        ${RAYLIB_PATH}/raylib/src
-        ${RAYLIB_PATH}/include
-    DOC "Path to raylib headers"
-)
-
-find_library(RAYLIB_LIBRARY
-    NAMES raylib
-    PATHS 
-        ${RAYLIB_PATH}/w64devkit/x86_64-w64-mingw32/lib
-        ${RAYLIB_PATH}/lib
-    DOC "Path to raylib library"
-)
 
 # Debug messages
 message(STATUS "RAYLIB_INCLUDE_DIR: ${RAYLIB_INCLUDE_DIR}")

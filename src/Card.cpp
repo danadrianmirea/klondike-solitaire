@@ -24,13 +24,15 @@ void Card::loadTexture(const std::string& imagePath) {
         Texture2D texture = LoadTextureFromImage(img);
         if (texture.id == 0) {
             std::cerr << "Failed to create texture from image: " << imagePath << std::endl;
-        } else {
-            // Cache the texture
-            textureCache[imagePath] = texture;
+            UnloadImage(img);
+            return;
         }
 
+        // Cache the texture
+        textureCache[imagePath] = texture;
+
         // Clean up
-        //UnloadImage(img);
+        UnloadImage(img);
     } else {
         std::cerr << "Card image file not found: " << imagePath << std::endl;
     }
@@ -57,24 +59,9 @@ void Card::preloadTextures() {
         }
     }
 
-    // Determine number of threads to use (use half the available threads to avoid overwhelming the system)
-    unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency() / 2);
-    std::vector<std::future<void>> futures;
-
-    // Split work among threads
-    size_t chunkSize = (imagePaths.size() + numThreads - 1) / numThreads;
-    for (size_t i = 0; i < imagePaths.size(); i += chunkSize) {
-        size_t end = std::min(i + chunkSize, imagePaths.size());
-        futures.push_back(std::async(std::launch::async, [&imagePaths, i, end]() {
-            for (size_t j = i; j < end; ++j) {
-                loadTexture(imagePaths[j]);
-            }
-        }));
-    }
-
-    // Wait for all threads to complete
-    for (auto& future : futures) {
-        future.wait();
+    // Load textures sequentially to avoid WebGL context issues
+    for (const auto& imagePath : imagePaths) {
+        loadTexture(imagePath);
     }
 
     texturesLoaded = true;
@@ -84,13 +71,17 @@ void Card::loadCardBack(const std::string &imagePath) {
     if (cardBack.id == 0) { // Only load if not already loaded
         if (FileExists(imagePath.c_str())) {
             Image img = LoadImage(imagePath.c_str());
+            if (img.data == NULL) {
+                std::cerr << "Failed to load card back image: " << imagePath << std::endl;
+                return;
+            }
+
             ImageResize(&img, CARD_WIDTH, CARD_HEIGHT);
             cardBack = LoadTextureFromImage(img);
-            //UnloadImage(img);
+            UnloadImage(img);
 
             if (cardBack.id == 0) {
-                std::cerr << "Failed to load card back texture: " << imagePath
-                        << std::endl;
+                std::cerr << "Failed to load card back texture: " << imagePath << std::endl;
             }
         } else {
             std::cerr << "Card back image file not found: " << imagePath << std::endl;

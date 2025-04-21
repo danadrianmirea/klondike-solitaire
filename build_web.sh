@@ -5,15 +5,25 @@ emcc src/*.cpp -o web-build/index.html \
   libraylib.web.a \
   -DPLATFORM_WEB \
   -DEMSCRIPTEN_BUILD \
-  -s USE_GLFW=3 \
+  -DDEBUG=1 \
   -s ASYNCIFY \
-  -s TOTAL_MEMORY=16777216 \
-  -s FORCE_FILESYSTEM=1 \
-  -s EXPORTED_FUNCTIONS="['_main']" \
+  -s TOTAL_MEMORY=67108864 \
+  -s STACK_SIZE=5242880 \
+  -s USE_GLFW=3 \
+  -s EXPORTED_FUNCTIONS="['_main', '_glfwInit', '_glfwTerminate', '_glfwWindowHint']" \
   -s EXPORTED_RUNTIME_METHODS="['ccall', 'cwrap']" \
   -s ALLOW_MEMORY_GROWTH=1 \
+  -s USE_WEBGL2=1 \
+  -s FULL_ES3=1 \
+  -s MIN_WEBGL_VERSION=2 \
+  -s MAX_WEBGL_VERSION=2 \
+  -s ASSERTIONS=1 \
+  -s SAFE_HEAP=1 \
+  -s STACK_OVERFLOW_CHECK=1 \
+  -s DEMANGLE_SUPPORT=1 \
+  -O1 \
   --preload-file assets@/assets \
-  --shell-file custom_shell.html
+  --shell-file minshell.html
 
 # Check if the emcc build was successful
 if [ $? -eq 0 ]; then

@@ -7,7 +7,6 @@
 
 // Define debug flag
 #define DEBUG 1
-#define DEBUG_STOCKPILE 1
 
 // Define base constants
 const int BASE_CARD_WIDTH = 71;
@@ -25,7 +24,7 @@ const int BASE_MENU_ITEM_HEIGHT = 25;
 const int BASE_MENU_TEXT_PADDING = 5;
 const int BASE_MENU_DROPDOWN_HEIGHT = BASE_MENU_ITEM_HEIGHT * 4;  // 4 menu items
 
-const float SCALE_FACTOR = 0.8f;
+const float SCALE_FACTOR = 1.5f;
 
 // Scaled constants (will be calculated in constructor)
 extern int CARD_WIDTH;

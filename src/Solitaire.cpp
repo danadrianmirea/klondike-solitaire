@@ -26,17 +26,41 @@ int MENU_TEXT_PADDING;
 int MENU_ITEM_HEIGHT;
 
 Solitaire::Solitaire() {
-    auto now = std::chrono::system_clock::now();
-    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-    srand(static_cast<unsigned int>(millis));
-    
+#if DEBUG == 1
+    std::cout << "Starting Solitaire constructor..." << std::endl;
+#endif
+
+    // Initialize random seed
+    srand(time(NULL));
+#if DEBUG == 1
+    std::cout << "Random seed initialized: " << time(NULL) << std::endl;
+#endif
+
+    // Set up window size
+    WINDOW_WIDTH = BASE_WINDOW_WIDTH;
+    WINDOW_HEIGHT = BASE_WINDOW_HEIGHT;
+
+#if DEBUG == 1
+    std::cout << "Screen dimensions: " << WINDOW_WIDTH << "x" << WINDOW_HEIGHT << std::endl;
+    std::cout << "Scaling factor: " << SCALE_FACTOR << std::endl;
+    std::cout << "Scaled constants:" << std::endl;
+    std::cout << "  CARD_WIDTH: " << CARD_WIDTH << std::endl;
+    std::cout << "  CARD_HEIGHT: " << CARD_HEIGHT << std::endl;
+    std::cout << "  CARD_SPACING: " << CARD_SPACING << std::endl;
+    std::cout << "  WINDOW_WIDTH: " << WINDOW_WIDTH << std::endl;
+    std::cout << "  WINDOW_HEIGHT: " << WINDOW_HEIGHT << std::endl;
+#endif
+
     // Calculate scaling factor based on screen size
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
+    std::cout << "Screen dimensions: " << screenWidth << "x" << screenHeight << std::endl;
+    
     float scaleFactor = std::min(
         static_cast<float>(screenHeight) / BASE_WINDOW_HEIGHT,
         static_cast<float>(screenWidth) / BASE_WINDOW_WIDTH
     ) * SCALE_FACTOR;
+    std::cout << "Scale factor calculated: " << scaleFactor << std::endl;
     
     // Calculate scaled constants
     CARD_WIDTH = static_cast<int>(BASE_CARD_WIDTH * scaleFactor);
@@ -51,7 +75,14 @@ Solitaire::Solitaire() {
     MENU_DROPDOWN_HEIGHT = static_cast<int>(BASE_MENU_DROPDOWN_HEIGHT * scaleFactor);
     MENU_TEXT_PADDING = static_cast<int>(BASE_MENU_TEXT_PADDING * scaleFactor);
     MENU_ITEM_HEIGHT = static_cast<int>(BASE_MENU_ITEM_HEIGHT * scaleFactor);
-    
+
+    std::cout << "Scaled constants:" << std::endl;
+    std::cout << "  CARD_WIDTH: " << CARD_WIDTH << std::endl;
+    std::cout << "  CARD_HEIGHT: " << CARD_HEIGHT << std::endl;
+    std::cout << "  WINDOW_WIDTH: " << WINDOW_WIDTH << std::endl;
+    std::cout << "  WINDOW_HEIGHT: " << WINDOW_HEIGHT << std::endl;
+
+#ifndef EMSCRIPTEN_BUILD
     // Set window size
     SetWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
     
@@ -59,36 +90,50 @@ Solitaire::Solitaire() {
     int monitor = GetCurrentMonitor();
     int monitorWidth = GetMonitorWidth(monitor);
     int monitorHeight = GetMonitorHeight(monitor);
+    std::cout << "Monitor dimensions: " << monitorWidth << "x" << monitorHeight << std::endl;
+    
     SetWindowPosition(
         (monitorWidth - WINDOW_WIDTH) / 2,
         (monitorHeight - WINDOW_HEIGHT) / 2
     );
-    
-    // Show initial loading screen
-    BeginDrawing();
-    ClearBackground(GREEN);
-    DrawText("Loading textures...", WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2 - 20, 20, WHITE);
-    EndDrawing();
-    
+    std::cout << "Window positioned at: (" << (monitorWidth - WINDOW_WIDTH) / 2 
+              << ", " << (monitorHeight - WINDOW_HEIGHT) / 2 << ")" << std::endl;
+#endif
+
+    // Initialize menu state
+    menuOpen = false;
+#if DEBUG == 1
+    std::cout << "Menu initialized" << std::endl;
+    std::cout << "Loading textures..." << std::endl;
+#endif
+
     // Load card back texture
+    std::cout << "Loading card back texture..." << std::endl;
     Card::loadCardBack("assets/cards/card_back_red.png");
     
-    // Preload all card textures in parallel
+    // Preload all card textures
+    std::cout << "Preloading card textures..." << std::endl;
     Card::preloadTextures();
     
     // Keep showing loading screen until textures are fully loaded
+    std::cout << "Waiting for textures to load..." << std::endl;
     while (!Card::areTexturesLoaded()) {
         BeginDrawing();
         ClearBackground(GREEN);
         DrawText("Loading textures...", WINDOW_WIDTH/2 - 100, WINDOW_HEIGHT/2 - 20, 20, WHITE);
         EndDrawing();
     }
+    std::cout << "All textures loaded successfully" << std::endl;
     
     // Now that textures are loaded, initialize the game
+    std::cout << "Initializing game..." << std::endl;
     resetGame();
-
-    // Initialize menu state
-    menuOpen = false;
+    
+#if DEBUG == 1
+    std::cout << "Textures loaded successfully" << std::endl;
+    std::cout << "Game initialized" << std::endl;
+    std::cout << "Solitaire constructor completed" << std::endl;
+#endif
 }
 
 Solitaire::~Solitaire() {
@@ -185,7 +230,7 @@ std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
     // Check tableau piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 7; i++) {
         float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-        float y = 200 * SCALE_FACTOR + MENU_HEIGHT;  // Add MENU_HEIGHT
+        float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
         
         // Check if click is within the pile's x-range
         if (x <= pos.x && pos.x <= x + CARD_WIDTH) {
@@ -378,7 +423,7 @@ void Solitaire::handleMouseDown(Vector2 pos) {
     float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20;
     Rectangle stockRect = { stockX, stockY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
     if (CheckCollisionPointRec(pos, stockRect)) {
-#if DEBUG_STOCKPILE == 1
+#if DEBUG == 1
         // Debug print stock and waste state
         std::cout << "\nBefore stock pile interaction:" << std::endl;
         std::cout << "Stock pile (" << stock.size() << " cards): ";
@@ -402,7 +447,7 @@ void Solitaire::handleMouseDown(Vector2 pos) {
                 stock.push_back(card);
             }
             lastDrawnCard = nullptr;  // Reset last drawn card when recycling waste
-#if DEBUG_STOCKPILE == 1
+#if DEBUG == 1
             std::cout << "Restored waste cards to stock" << std::endl;
 #endif
             return;  // Return here to prevent any further handling
@@ -416,12 +461,12 @@ void Solitaire::handleMouseDown(Vector2 pos) {
             waste.push_back(card);
             lastDrawnCard = &waste.back();  // Track the last drawn card
             lastDealTime = GetTime();
-#if DEBUG_STOCKPILE == 1
+#if DEBUG == 1
             std::cout << "Dealt card: " << card.getValue() << " of " << card.getSuit() << std::endl;
 #endif
         }
 
-#if DEBUG_STOCKPILE == 1
+#if DEBUG == 1
         // Debug print stock and waste state after interaction
         std::cout << "\nAfter stock pile interaction:" << std::endl;
         std::cout << "Stock pile (" << stock.size() << " cards): ";
@@ -442,7 +487,7 @@ void Solitaire::handleMouseDown(Vector2 pos) {
     // Find the card that was clicked (account for MENU_HEIGHT in foundation and tableau)
     for (int i = 0; i < 7; i++) {
         float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-        float y = 200 * SCALE_FACTOR + MENU_HEIGHT;  // Add MENU_HEIGHT
+        float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
         
         // Check if click is within the pile's x-range
         if (x <= pos.x && pos.x <= x + CARD_WIDTH) {
@@ -554,8 +599,8 @@ void Solitaire::handleMouseUp(Vector2 pos) {
             for (int i = 0; i < 7; i++) {
                 if (&tableau[i] == draggedSourcePile) {
                     float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-                    float y = 200 * SCALE_FACTOR + draggedStartIndex * CARD_SPACING;
-                    draggedCards[0].setPosition(x, y);
+                    float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
+                    draggedCards[0].setPosition(x, y + draggedStartIndex * CARD_SPACING);
                     break;
                 }
             }
@@ -635,8 +680,8 @@ void Solitaire::handleMouseUp(Vector2 pos) {
             for (int i = 0; i < 7; i++) {
                 if (&tableau[i] == draggedSourcePile) {
                     float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-                    float y = 200 * SCALE_FACTOR + draggedStartIndex * CARD_SPACING;
-                    draggedCards[0].setPosition(x, y);
+                    float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
+                    draggedCards[0].setPosition(x, y + draggedStartIndex * CARD_SPACING);
                     break;
                 }
             }
@@ -879,6 +924,7 @@ bool Solitaire::loadGame() {
         return false;
     }
 #endif
+    return false;  // Return false if not compiled with PLATFORM_DESKTOP
 }
 
 void Solitaire::handleMenuClick(Vector2 pos) {
@@ -948,8 +994,33 @@ void Solitaire::handleRightClick(Vector2 pos) {
 }
 
 void Solitaire::update() {
+    static int frameCount = 0;
+    frameCount++;
+    
+    if (frameCount % 60 == 0) {  // Log every second (assuming 60 FPS)
+#if DEBUG == 1
+        std::cout << "Game state update:" << std::endl;
+        std::cout << "  Stock size: " << stock.size() << std::endl;
+        std::cout << "  Waste size: " << waste.size() << std::endl;
+        std::cout << "  Tableau sizes: ";
+        for (const auto& pile : tableau) {
+            std::cout << pile.size() << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "  Foundation sizes: ";
+        for (const auto& pile : foundations) {
+            std::cout << pile.size() << " ";
+        }
+        std::cout << std::endl;
+#endif
+    }
+
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+#if DEBUG == 1
+        std::cout << "Left click at: " << GetMouseX() << ", " << GetMouseY() << std::endl;
+#endif
         Vector2 pos = GetMousePosition();
+        std::cout << "Left click at: (" << pos.x << ", " << pos.y << ")" << std::endl;
         
         // Check menu first
         handleMenuClick(pos);
@@ -960,33 +1031,54 @@ void Solitaire::update() {
         }
     }
     if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-        handleMouseUp(GetMousePosition());
+#if DEBUG == 1
+        std::cout << "Left release at: " << GetMouseX() << ", " << GetMouseY() << std::endl;
+#endif
+        Vector2 pos = GetMousePosition();
+        std::cout << "Left release at: (" << pos.x << ", " << pos.y << ")" << std::endl;
+        handleMouseUp(pos);
     }
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && GetMouseDelta().x == 0 && GetMouseDelta().y == 0) {
         // Check for double click (mouse hasn't moved between clicks)
         static double lastClickTime = 0;
         double currentTime = GetTime();
         if (currentTime - lastClickTime < 0.3) {  // 300ms threshold for double click
+            std::cout << "Double click detected" << std::endl;
             handleDoubleClick(GetMousePosition());
         }
         lastClickTime = currentTime;
     }
     if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-        handleRightClick(GetMousePosition());
+#if DEBUG == 1
+        std::cout << "Right click at: " << GetMouseX() << ", " << GetMouseY() << std::endl;
+#endif
+        Vector2 pos = GetMousePosition();
+        std::cout << "Right click at: (" << pos.x << ", " << pos.y << ")" << std::endl;
+        handleRightClick(pos);
     }
 
     if (checkWin()) {
+        if (!gameWon) {  // Only log when game is first won
+            std::cout << "=== GAME WON! ===" << std::endl;
+        }
         gameWon = true;
     }
 }
 
 void Solitaire::draw() {
-    // Check if window is still open
-    if (!IsWindowReady()) {
-        return;
+    static int drawCount = 0;
+    drawCount++;
+    
+    if (drawCount % 60 == 0) {  // Log every second (assuming 60 FPS)
+#if DEBUG == 1
+        std::cout << "Drawing frame:" << std::endl;
+        std::cout << "  Window dimensions: " << GetScreenWidth() << "x" << GetScreenHeight() << std::endl;
+        std::cout << "  Menu state: " << (menuOpen ? "open" : "closed") << std::endl;
+        std::cout << "  Game state: " << (gameWon ? "won" : "in progress") << std::endl;
+        std::cout << "  Dragged cards: " << draggedCards.size() << std::endl;
+#endif
     }
 
-    // Draw background
     ClearBackground(GREEN);
 
     // Draw foundation piles (moved down by MENU_HEIGHT)
@@ -1013,7 +1105,7 @@ void Solitaire::draw() {
     // Draw tableau piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 7; i++) {
         float x = 50 * SCALE_FACTOR + i * TABLEAU_SPACING;
-        float y = 200 * SCALE_FACTOR + MENU_HEIGHT;  // Add MENU_HEIGHT
+        float y = 130 * SCALE_FACTOR + MENU_HEIGHT;  // Changed from 150 to 130
          
         for (size_t j = 0; j < tableau[i].size(); j++) {
             // Skip drawing cards that are being dragged
