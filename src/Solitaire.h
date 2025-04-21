@@ -25,7 +25,7 @@ const int BASE_MENU_TEXT_PADDING = 5;
 const int BASE_MENU_DROPDOWN_HEIGHT = BASE_MENU_ITEM_HEIGHT * 4;  // 4 menu items
 
 const float SCALE_FACTOR = 1.0f;
-const float MOBILE_SCALE_FACTOR = 0.65f;
+const float MOBILE_SCALE_FACTOR = 0.7f;
 
 // Scaled constants (will be calculated in constructor)
 extern int CARD_WIDTH;

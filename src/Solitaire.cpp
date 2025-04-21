@@ -53,9 +53,9 @@ Solitaire::Solitaire() {
     float heightScale = static_cast<float>(screenHeight) / BASE_WINDOW_HEIGHT;
 
     // Use the smaller scale factor to ensure everything fits
-    scaleFactor = SCALE_FACTOR;
+    scaleFactor = std::min(widthScale, heightScale);
 
-    // For mobile devices, we might want to scale down more
+// For mobile devices, we might want to scale down more
 #ifdef EMSCRIPTEN_BUILD
     // Check if we're on a mobile device
     bool isMobile = EM_ASM_INT({

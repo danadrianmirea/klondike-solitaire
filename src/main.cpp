@@ -13,6 +13,92 @@ extern int WINDOW_HEIGHT;
 // Global game instance
 Solitaire* game = nullptr;
 
+// Function to lock orientation in landscape mode
+void LockOrientation() {
+#ifdef EMSCRIPTEN_BUILD
+    EM_ASM(
+        // Try to lock screen orientation to landscape
+        function attemptLockOrientation() {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(function(error) {
+                    console.log('Orientation lock failed: ', error);
+                });
+            } else if (screen.lockOrientation) {
+                // For older browsers
+                screen.lockOrientation('landscape');
+            } else if (screen.mozLockOrientation) {
+                screen.mozLockOrientation('landscape');
+            } else if (screen.msLockOrientation) {
+                screen.msLockOrientation('landscape');
+            }
+        }
+        
+        // Initial lock attempt
+        attemptLockOrientation();
+        
+        // Add event listeners for visibility and fullscreen changes
+        if (!window.orientationHandler) {
+            window.orientationHandler = true;
+            
+            // When page becomes visible again
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    setTimeout(attemptLockOrientation, 100);
+                }
+            });
+            
+            // When fullscreen changes
+            document.addEventListener('fullscreenchange', function() {
+                setTimeout(attemptLockOrientation, 100);
+            });
+            document.addEventListener('webkitfullscreenchange', function() {
+                setTimeout(attemptLockOrientation, 100);
+            });
+            document.addEventListener('mozfullscreenchange', function() {
+                setTimeout(attemptLockOrientation, 100);
+            });
+            document.addEventListener('MSFullscreenChange', function() {
+                setTimeout(attemptLockOrientation, 100);
+            });
+            
+            // Handle orientation change
+            window.addEventListener('orientationchange', function() {
+                setTimeout(attemptLockOrientation, 100);
+            });
+            
+            // Handle resize event (might happen when itch.io restores the game)
+            window.addEventListener('resize', function() {
+                setTimeout(attemptLockOrientation, 100);
+            });
+            
+            // Run orientation lock at regular intervals for the first few seconds
+            // This helps catch restoration from itch.io's interface
+            var intervalId = setInterval(attemptLockOrientation, 500);
+            setTimeout(function() { clearInterval(intervalId); }, 5000);
+            
+            // Handle focus events
+            window.addEventListener('focus', function() {
+                setTimeout(attemptLockOrientation, 100);
+            });
+            
+            // Create a MutationObserver to watch for DOM changes that might 
+            // indicate the game is being restored from itch.io
+            if (window.MutationObserver) {
+                var observer = new MutationObserver(function(mutations) {
+                    setTimeout(attemptLockOrientation, 100);
+                });
+                
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true
+                });
+            }
+        }
+    );
+#endif
+}
+
 void UpdateDrawFrame(void) {
     if (!game) return;
     
@@ -32,14 +118,8 @@ int main(void) {
         return -1;
     }
 
-#ifdef EMSCRIPTEN_BUILD
-    // Force landscape orientation for web builds
-    EM_ASM(
-        screen.orientation.lock('landscape').catch(function() {
-            console.log('Orientation lock not supported');
-        });
-    );
-#endif
+    // Lock orientation to landscape for mobile
+    LockOrientation();
 
     // Force a frame to ensure OpenGL context is properly initialized
     BeginDrawing();
