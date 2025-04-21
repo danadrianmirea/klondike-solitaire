@@ -77,6 +77,7 @@ private:
     void resetGame();
     void loadCards();
     void dealCards();
+    void returnDraggedCards(); // Helper to return dragged cards to original position
     std::vector<Card>* getPileAtPos(Vector2 pos);
     bool canMoveToTableau(const Card& card, const std::vector<Card>& targetPile);
     bool canMoveToFoundation(const Card& card, const std::vector<Card>& targetPile);

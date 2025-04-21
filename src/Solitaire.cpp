@@ -493,44 +493,43 @@ void Solitaire::handleMouseDown(Vector2 pos) {
 }
 
 void Solitaire::handleMouseUp(Vector2 pos) {
+    // If we're not dragging any cards, there's nothing to do
     if (draggedCards.empty()) return;
+
+    // Make sure we have a valid source pile
+    if (!draggedSourcePile) {
+        draggedCards.clear();
+        return;
+    }
 
     std::vector<Card>* targetPile = getPileAtPos(pos);
     if (!targetPile) {
         // Return cards to original position
-        if (draggedSourcePile == &waste) {
-            float stockX = 50 * scaleFactor;
-            float wasteX = stockX + TABLEAU_SPACING;
-            float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
-            draggedCards[0].setPosition(wasteX, wasteY);
-        } else if (draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
-                  draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
-            // Find the original foundation pile
-            for (int i = 0; i < 4; i++) {
-                if (&foundations[i] == draggedSourcePile) {
-                    float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-                    float y = 10 * scaleFactor + MENU_HEIGHT;
-                    draggedCards[0].setPosition(x, y);
-                    break;
-                }
-            }
-        } else {
-            // Find the original tableau pile
-            for (int i = 0; i < 7; i++) {
-                if (&tableau[i] == draggedSourcePile) {
-                    float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-                    float y = 130 * scaleFactor + MENU_HEIGHT;  // Changed from 150 to 130
-                    draggedCards[0].setPosition(x, y + draggedStartIndex * CARD_SPACING);
-                    break;
-                }
-            }
-        }
+        returnDraggedCards();
         draggedCards.clear();
         draggedSourcePile = nullptr;
         return;
     }
 
     if (targetPile == draggedSourcePile) {
+        // Dropping cards back onto their original pile, just clear the dragged state
+        returnDraggedCards();
+        draggedCards.clear();
+        draggedSourcePile = nullptr;
+        return;
+    }
+
+    // Check if target pile is the waste pile - never allow dropping cards on the waste pile
+    if (targetPile == &waste) {
+        returnDraggedCards();
+        draggedCards.clear();
+        draggedSourcePile = nullptr;
+        return;
+    }
+
+    // Check if target pile is the stock pile - never allow dropping cards on the stock pile
+    if (targetPile == &stock) {
+        returnDraggedCards();
         draggedCards.clear();
         draggedSourcePile = nullptr;
         return;
@@ -563,37 +562,53 @@ void Solitaire::handleMouseUp(Vector2 pos) {
         moveCards(*draggedSourcePile, *targetPile, draggedSourcePile->size() - 1);
     } else {
         // Return cards to original position
-        if (draggedSourcePile == &waste) {
-            float stockX = 50 * scaleFactor;
-            float wasteX = stockX + TABLEAU_SPACING;
-            float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
-            draggedCards[0].setPosition(wasteX, wasteY);
-        } else if (draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
-                  draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
-            // Find the original foundation pile
-            for (int i = 0; i < 4; i++) {
-                if (&foundations[i] == draggedSourcePile) {
-                    float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-                    float y = 10 * scaleFactor + MENU_HEIGHT;
-                    draggedCards[0].setPosition(x, y);
-                    break;
+        returnDraggedCards();
+    }
+
+    // Clean up the dragged state
+    draggedCards.clear();
+    draggedSourcePile = nullptr;
+}
+
+// Add this helper method to avoid code duplication
+void Solitaire::returnDraggedCards() {
+    if (!draggedSourcePile || draggedCards.empty()) {
+        return; // Safety check
+    }
+
+    if (draggedSourcePile == &waste) {
+        float stockX = 50 * scaleFactor;
+        float wasteX = stockX + TABLEAU_SPACING;
+        float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
+        for (size_t i = 0; i < draggedCards.size(); i++) {
+            draggedCards[i].setPosition(wasteX, wasteY);
+        }
+    } else if (draggedSourcePile == &foundations[0] || draggedSourcePile == &foundations[1] || 
+              draggedSourcePile == &foundations[2] || draggedSourcePile == &foundations[3]) {
+        // Find the original foundation pile
+        for (int i = 0; i < 4; i++) {
+            if (&foundations[i] == draggedSourcePile) {
+                float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+                float y = 10 * scaleFactor + MENU_HEIGHT;
+                for (size_t j = 0; j < draggedCards.size(); j++) {
+                    draggedCards[j].setPosition(x, y);
                 }
+                break;
             }
-        } else {
-            // Find the original tableau pile
-            for (int i = 0; i < 7; i++) {
-                if (&tableau[i] == draggedSourcePile) {
-                    float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-                    float y = 130 * scaleFactor + MENU_HEIGHT;  // Changed from 150 to 130
-                    draggedCards[0].setPosition(x, y + draggedStartIndex * CARD_SPACING);
-                    break;
+        }
+    } else {
+        // Find the original tableau pile
+        for (int i = 0; i < 7; i++) {
+            if (&tableau[i] == draggedSourcePile) {
+                float x = 50 * scaleFactor + i * TABLEAU_SPACING;
+                float y = 130 * scaleFactor + MENU_HEIGHT;
+                for (size_t j = 0; j < draggedCards.size(); j++) {
+                    draggedCards[j].setPosition(x, y + (draggedStartIndex + j) * CARD_SPACING);
                 }
+                break;
             }
         }
     }
-
-    draggedCards.clear();
-    draggedSourcePile = nullptr;
 }
 
 void Solitaire::handleDoubleClick(Vector2 pos) {
@@ -891,10 +906,13 @@ void Solitaire::update() {
             handleMouseDown(pos);
         }
     }
+    
+    // Always check for mouse button release to ensure we stop dragging cards
     if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
         Vector2 pos = GetMousePosition();
         handleMouseUp(pos);
     }
+    
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && GetMouseDelta().x == 0 && GetMouseDelta().y == 0) {
         // Check for double click (mouse hasn't moved between clicks)
         static double lastClickTime = 0;
