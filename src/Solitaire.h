@@ -20,9 +20,12 @@ const int BASE_MENU_HEIGHT = 30;
 // Base menu constants
 const int BASE_MENU_FILE_X = 160;
 const int BASE_MENU_FILE_WIDTH = 100;
+const int BASE_MENU_HELP_X = 260;  // Position of Help menu
+const int BASE_MENU_HELP_WIDTH = 100;  // Width of Help menu
 const int BASE_MENU_ITEM_HEIGHT = 25;
 const int BASE_MENU_TEXT_PADDING = 5;
 const int BASE_MENU_DROPDOWN_HEIGHT = BASE_MENU_ITEM_HEIGHT * 4;  // 4 menu items
+const int BASE_MENU_HELP_DROPDOWN_HEIGHT = BASE_MENU_ITEM_HEIGHT * 1;  // 1 menu item for Help
 
 const float SCALE_FACTOR = 1.0f;
 const float MOBILE_SCALE_FACTOR = 0.7f;
@@ -54,6 +57,7 @@ public:
     void handleRightClick(Vector2 pos);
     void update();
     void draw();
+    bool shouldExit() const { return shouldClose; }  // New getter method
 
 private:
     // Game state
@@ -71,7 +75,12 @@ private:
 
     // Menu state
     bool menuOpen;
+    bool helpMenuOpen;  // New state for Help menu
+    bool shouldClose;
+    bool aboutDialogOpen;  // New state for About dialog
+
     void handleMenuClick(Vector2 pos);
+    void showAboutDialog();  // New method to show About dialog
 
     // Helper methods
     void resetGame();

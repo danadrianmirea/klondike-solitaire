@@ -142,7 +142,7 @@ int main(void) {
 #ifdef EMSCRIPTEN_BUILD
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
-    while (!WindowShouldClose()) {
+    while (!WindowShouldClose() && !game->shouldExit()) {
         UpdateDrawFrame();
     }
 #endif

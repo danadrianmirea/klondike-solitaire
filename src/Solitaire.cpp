@@ -104,6 +104,10 @@ Solitaire::Solitaire() {
 
     // Initialize menu state
     menuOpen = false;
+    helpMenuOpen = false;
+    shouldClose = false;
+    gameWon = false;
+    aboutDialogOpen = false;
 
     // Load card back texture
     Card::loadCardBack("assets/cards/card_back_red.png");
@@ -842,21 +846,27 @@ bool Solitaire::loadGame() {
 }
 
 void Solitaire::handleMenuClick(Vector2 pos) {
-    // Check if clicking on File menu
-    if (pos.y <= MENU_HEIGHT && 
-        pos.x >= MENU_FILE_X && 
-        pos.x <= MENU_FILE_X + MENU_FILE_WIDTH) {
-        menuOpen = !menuOpen;
-        return;
+    // Check if clicking on menu bar
+    if (pos.y < MENU_ITEM_HEIGHT) {
+        // Check if clicking on File menu
+        if (pos.x >= MENU_FILE_X && pos.x < MENU_FILE_X + MENU_FILE_WIDTH) {
+            menuOpen = !menuOpen;
+            helpMenuOpen = false;  // Close Help menu when opening File menu
+        }
+        // Check if clicking on Help menu
+        else if (pos.x >= BASE_MENU_HELP_X && pos.x < BASE_MENU_HELP_X + BASE_MENU_HELP_WIDTH) {
+            helpMenuOpen = !helpMenuOpen;
+            menuOpen = false;  // Close File menu when opening Help menu
+        }
+        else {
+            menuOpen = false;
+            helpMenuOpen = false;
+        }
     }
-
-    // If menu is open, check menu items
-    if (menuOpen) {
-        if (pos.y >= MENU_HEIGHT && 
-            pos.y <= MENU_HEIGHT + MENU_DROPDOWN_HEIGHT && 
-            pos.x >= MENU_FILE_X && 
-            pos.x <= MENU_FILE_X + MENU_FILE_WIDTH) {
-            int itemIndex = (pos.y - MENU_HEIGHT) / MENU_ITEM_HEIGHT;
+    // Check if clicking on File menu items
+    else if (menuOpen && pos.y >= MENU_ITEM_HEIGHT && pos.y < MENU_ITEM_HEIGHT + MENU_DROPDOWN_HEIGHT) {
+        if (pos.x >= MENU_FILE_X && pos.x < MENU_FILE_X + MENU_FILE_WIDTH) {
+            int itemIndex = (pos.y - MENU_ITEM_HEIGHT) / MENU_ITEM_HEIGHT;
             switch (itemIndex) {
                 case 0: // New Game
                     resetGame();
@@ -867,20 +877,31 @@ void Solitaire::handleMenuClick(Vector2 pos) {
                 case 2: // Load
                     loadGame();
                     break;
-                case 3: // Quit
-                    // Clean up resources
-                    Card::unloadCardBack();
-                    // Close the window
-                    CloseWindow();
-                    // Exit the application
-                    exit(0);
+                case 3: // Exit
+                    shouldClose = true;
                     break;
             }
             menuOpen = false;
-        } else {
-            menuOpen = false;
         }
     }
+    // Check if clicking on Help menu items
+    else if (helpMenuOpen && pos.y >= MENU_ITEM_HEIGHT && pos.y < MENU_ITEM_HEIGHT + BASE_MENU_HELP_DROPDOWN_HEIGHT) {
+        if (pos.x >= BASE_MENU_HELP_X && pos.x < BASE_MENU_HELP_X + BASE_MENU_HELP_WIDTH) {
+            int itemIndex = (pos.y - MENU_ITEM_HEIGHT) / MENU_ITEM_HEIGHT;
+            if (itemIndex == 0) { // About
+                showAboutDialog();
+            }
+            helpMenuOpen = false;
+        }
+    }
+    else {
+        menuOpen = false;
+        helpMenuOpen = false;
+    }
+}
+
+void Solitaire::showAboutDialog() {
+    aboutDialogOpen = true;
 }
 
 void Solitaire::handleRightClick(Vector2 pos) {
@@ -1045,6 +1066,7 @@ void Solitaire::draw() {
     DrawRectangle(0, 0, WINDOW_WIDTH, MENU_HEIGHT, DARKGRAY);
     int fontSize = static_cast<int>(20 * scaleFactor);
     DrawText("File", MENU_FILE_X + MENU_TEXT_PADDING, MENU_TEXT_PADDING, fontSize, WHITE);
+    DrawText("Help", BASE_MENU_HELP_X + MENU_TEXT_PADDING, MENU_TEXT_PADDING, fontSize, WHITE);
     
     // Draw menu items when File is clicked
     if (menuOpen) {
@@ -1053,8 +1075,71 @@ void Solitaire::draw() {
 #ifndef EMSCRIPTEN_BUILD        
         DrawText("Save", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT + MENU_TEXT_PADDING, fontSize, WHITE);
         DrawText("Load", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 2 + MENU_TEXT_PADDING, fontSize, WHITE);
-        DrawText("Quit", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 3 + MENU_TEXT_PADDING, fontSize, WHITE);
+        DrawText("Exit", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 3 + MENU_TEXT_PADDING, fontSize, WHITE);
 #endif
+    }
+
+    // Draw Help menu dropdown if open
+    if (helpMenuOpen) {
+        DrawRectangle(BASE_MENU_HELP_X, MENU_HEIGHT, BASE_MENU_HELP_WIDTH, BASE_MENU_HELP_DROPDOWN_HEIGHT, DARKGRAY);
+        DrawRectangleLines(BASE_MENU_HELP_X, MENU_HEIGHT, BASE_MENU_HELP_WIDTH, BASE_MENU_HELP_DROPDOWN_HEIGHT, WHITE);
+        
+        DrawText("About", 
+                BASE_MENU_HELP_X + BASE_MENU_TEXT_PADDING, 
+                MENU_HEIGHT + BASE_MENU_TEXT_PADDING, 
+                20, WHITE);
+    }
+
+    // Draw About dialog if open
+    if (aboutDialogOpen) {
+        // Create a modal dialog with game information
+        const char* aboutText = "Solitaire\n\n"
+                               "A classic card game implementation using raylib.\n\n"
+                               "Controls:\n"
+                               "- Left click to select and move cards\n"
+                               "- Right click to auto-move cards to foundation\n"
+                               "- Drag cards to move them\n"
+                               "- Use the menu for game options\n\n";
+
+        // Calculate dialog dimensions
+        int fontSize = 20;
+        int textWidth = MeasureText(aboutText, fontSize);
+        int dialogWidth = textWidth + 40;
+        int dialogHeight = 300;
+        int dialogX = (GetScreenWidth() - dialogWidth) / 2;
+        int dialogY = (GetScreenHeight() - dialogHeight) / 2;
+
+        // Draw dialog background
+        DrawRectangle(dialogX, dialogY, dialogWidth, dialogHeight, LIGHTGRAY);
+        DrawRectangleLines(dialogX, dialogY, dialogWidth, dialogHeight, DARKGRAY);
+
+        // Draw text
+        DrawText(aboutText, dialogX + 20, dialogY + 20, fontSize, BLACK);
+
+        // Draw OK button
+        const char* okText = "OK";
+        int buttonWidth = 60;
+        int buttonHeight = 30;
+        int buttonX = dialogX + (dialogWidth - buttonWidth) / 2;
+        int buttonY = dialogY + dialogHeight - buttonHeight - 20;
+        
+        // Draw button background
+        DrawRectangle(buttonX, buttonY, buttonWidth, buttonHeight, DARKGRAY);
+        DrawRectangleLines(buttonX, buttonY, buttonWidth, buttonHeight, BLACK);
+        
+        // Draw button text
+        int textX = buttonX + (buttonWidth - MeasureText(okText, fontSize)) / 2;
+        int textY = buttonY + (buttonHeight - fontSize) / 2;
+        DrawText(okText, textX, textY, fontSize, WHITE);
+
+        // Check if OK button is clicked
+        Vector2 mousePos = GetMousePosition();
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+            mousePos.x >= buttonX && mousePos.x <= buttonX + buttonWidth &&
+            mousePos.y >= buttonY && mousePos.y <= buttonY + buttonHeight) {
+            aboutDialogOpen = false;
+            helpMenuOpen = false;
+        }
     }
 
     if (gameWon) {
