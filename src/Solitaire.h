@@ -13,8 +13,8 @@ const int baseCardWidth = 71;
 const int baseCardHeight = 96;
 const int baseCardSpacing = 20;
 const int baseTableauSpacing = 100;
-const int gameScreenWidth = 800;
-const int gameScreenHeight = 600;
+const int baseWindowWidth = 800;
+const int baseWindowHeight = 600;
 const int baseMenuHeight = 30;
 const int baseMenuFileX = 160;
 const int baseMenuFileWidth = 100;
@@ -24,21 +24,6 @@ const int baseMenuItemHeight = 25;
 const int baseMenuTextPadding = 5;
 const int baseMenuDropdownHeight = baseMenuItemHeight * 4;  // 4 menu items
 const int baseMenuHelpDropdownHeight = baseMenuItemHeight * 1;  // 1 menu item for Help
-
-// Scaled dimensions (extern)
-extern int cardWidth;
-extern int cardHeight;
-extern int cardSpacing;
-extern int tableauSpacing;
-extern int menuHeight;
-extern int menuFileX;
-extern int menuFileWidth;
-extern int menuHelpX;
-extern int menuHelpWidth;
-extern int menuItemHeight;
-extern int menuTextPadding;
-extern int menuDropdownHeight;
-extern int menuHelpDropdownHeight;
 
 class Solitaire {
 public:

@@ -21,7 +21,7 @@ float gameScale = 1.0f;
 void UpdateDrawFrame(void) {
     if (!game) return;
 
-    gameScale = MIN((float)GetScreenWidth() / gameScreenWidth, (float)GetScreenHeight() / gameScreenHeight);
+    gameScale = MIN((float)GetScreenWidth() / baseWindowWidth, (float)GetScreenHeight() / baseWindowHeight);
     game->update();
     
     // Begin rendering to the game target
@@ -36,8 +36,8 @@ void UpdateDrawFrame(void) {
 
     DrawTexturePro(gameTarget.texture, (Rectangle) { 0.0f, 0.0f, (float)gameTarget.texture.width, (float)-gameTarget.texture.height },
         (Rectangle) {
-        (GetScreenWidth() - ((float)gameScreenWidth * gameScale)) * 0.5f, (GetScreenHeight() - ((float)gameScreenHeight * gameScale)) * 0.5f,
-            (float)gameScreenWidth* gameScale, (float)gameScreenHeight* gameScale
+        (GetScreenWidth() - ((float)baseWindowWidth * gameScale)) * 0.5f, (GetScreenHeight() - ((float)baseWindowHeight * gameScale)) * 0.5f,
+            (float)baseWindowWidth * gameScale, (float)baseWindowHeight * gameScale
     },
         (Vector2) {
         0, 0
@@ -48,7 +48,7 @@ void UpdateDrawFrame(void) {
 
 int main(void) {
     // Initialize window with base dimensions first
-    InitWindow(gameScreenWidth, gameScreenHeight, "Solitaire");
+    InitWindow(baseWindowWidth, baseWindowHeight, "Solitaire");
     
     if (!IsWindowReady()) {
         return -1;
@@ -73,7 +73,7 @@ int main(void) {
     }
 
     // Create render texture for the game
-    gameTarget = LoadRenderTexture(gameScreenWidth, gameScreenHeight);
+    gameTarget = LoadRenderTexture(baseWindowWidth, baseWindowHeight);
     SetTextureFilter(gameTarget.texture, TEXTURE_FILTER_BILINEAR);
 
 #ifdef EMSCRIPTEN_BUILD
