@@ -15,136 +15,61 @@ using json = nlohmann::json;
 #include <emscripten.h>
 #endif
 
-
 // Define the scaled constants
-int CARD_WIDTH;
-int CARD_HEIGHT;
-int CARD_SPACING;
-int TABLEAU_SPACING;
-int WINDOW_WIDTH;
-int WINDOW_HEIGHT;
-int MENU_HEIGHT;
-int MENU_FILE_X;
-int MENU_FILE_WIDTH;
-int MENU_DROPDOWN_HEIGHT;
-int MENU_TEXT_PADDING;
-int MENU_ITEM_HEIGHT;
-
-// Initialize static member variable
-float Solitaire::scaleFactor = SCALE_FACTOR;
+int cardWidth;
+int cardHeight;
+int cardSpacing;
+int tableauSpacing;
+int menuHeight;
+int menuFileX;
+int menuFileWidth;
+int menuHelpX;
+int menuHelpWidth;
+int menuDropdownHeight;
+int menuTextPadding;
+int menuItemHeight;
+int menuHelpDropdownHeight;
 
 Solitaire::Solitaire() {
     // Initialize random seed
     srand(time(NULL));
 
-    // Get screen dimensions
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
+    cardWidth = static_cast<int>(baseCardWidth);
+    cardHeight = static_cast<int>(baseCardHeight);
+    cardSpacing = static_cast<int>(baseCardSpacing);
+    tableauSpacing = static_cast<int>(baseTableauSpacing);
+    menuHeight = static_cast<int>(baseMenuHeight);
+    menuFileX = static_cast<int>(baseMenuFileX);
+    menuFileWidth = static_cast<int>(baseMenuFileWidth);
+    menuHelpX = static_cast<int>(baseMenuHelpX);
+    menuHelpWidth = static_cast<int>(baseMenuHelpWidth);
+    menuItemHeight = static_cast<int>(baseMenuItemHeight);
+    menuTextPadding = static_cast<int>(baseMenuTextPadding);
+    menuDropdownHeight = static_cast<int>(baseMenuDropdownHeight);
+    menuHelpDropdownHeight = static_cast<int>(baseMenuHelpDropdownHeight);
 
-    // Ensure landscape orientation
-    bool isPortrait = screenHeight > screenWidth;
-    if (isPortrait) {
-        // Swap dimensions if in portrait mode
-        std::swap(screenWidth, screenHeight);
-    }
-
-    // Calculate base scaling factors
-    float widthScale = static_cast<float>(screenWidth) / BASE_WINDOW_WIDTH;
-    float heightScale = static_cast<float>(screenHeight) / BASE_WINDOW_HEIGHT;
-
-    // Use the smaller scale factor to ensure everything fits
-    scaleFactor = std::min(widthScale, heightScale);
-
-// For mobile devices, we might want to scale down more
-#ifdef EMSCRIPTEN_BUILD
-    // Check if we're on a mobile device
-    bool isMobile = EM_ASM_INT({
-        return (navigator.userAgent.indexOf('Android') > -1 || 
-                navigator.userAgent.indexOf('iPhone') > -1 || 
-                navigator.userAgent.indexOf('iPad') > -1 || 
-                navigator.userAgent.indexOf('iPod') > -1 || 
-                navigator.userAgent.indexOf('BlackBerry') > -1 || 
-                navigator.userAgent.indexOf('IEMobile') > -1 || 
-                navigator.userAgent.indexOf('Opera Mini') > -1) ? 1 : 0;
-    });
-
-    if (isMobile) {
-        scaleFactor *= MOBILE_SCALE_FACTOR;
-    }
-#endif
-
-    // Calculate scaled constants
-    CARD_WIDTH = static_cast<int>(BASE_CARD_WIDTH * scaleFactor);
-    CARD_HEIGHT = static_cast<int>(BASE_CARD_HEIGHT * scaleFactor);
-    CARD_SPACING = static_cast<int>(BASE_CARD_SPACING * scaleFactor);
-    TABLEAU_SPACING = static_cast<int>(BASE_TABLEAU_SPACING * scaleFactor);
-    WINDOW_WIDTH = static_cast<int>(BASE_WINDOW_WIDTH * scaleFactor);
-    WINDOW_HEIGHT = static_cast<int>(BASE_WINDOW_HEIGHT * scaleFactor);
-    MENU_HEIGHT = static_cast<int>(BASE_MENU_HEIGHT * scaleFactor);
-    MENU_FILE_X = static_cast<int>(BASE_MENU_FILE_X * scaleFactor);
-    MENU_FILE_WIDTH = static_cast<int>(BASE_MENU_FILE_WIDTH * scaleFactor);
-    MENU_DROPDOWN_HEIGHT = static_cast<int>(BASE_MENU_DROPDOWN_HEIGHT * scaleFactor);
-    MENU_TEXT_PADDING = static_cast<int>(BASE_MENU_TEXT_PADDING * scaleFactor);
-    MENU_ITEM_HEIGHT = static_cast<int>(BASE_MENU_ITEM_HEIGHT * scaleFactor);
-
-    // Set window size
-#ifndef EMSCRIPTEN_BUILD
-    SetWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-    
-    // Center window on screen
-    int monitor = GetCurrentMonitor();
-    int monitorWidth = GetMonitorWidth(monitor);
-    int monitorHeight = GetMonitorHeight(monitor);
-    
-    SetWindowPosition(
-        (monitorWidth - WINDOW_WIDTH) / 2,
-        (monitorHeight - WINDOW_HEIGHT) / 2
-    );
-#endif
-
-    // Initialize menu state
+    // Initialize game state
     menuOpen = false;
     helpMenuOpen = false;
     shouldClose = false;
-    gameWon = false;
     aboutDialogOpen = false;
+    gameWon = false;
+    draggedSourcePile = nullptr;
+    lastDrawnCard = nullptr;
+    lastDealTime = 0.0;
 
-    // Load card back texture
-    Card::loadCardBack("assets/cards/card_back_red.png");
-    
-    // Start preloading textures in background
-    Card::preloadTextures();
-    
-    // Show loading screen until textures are fully loaded
-    while (!Card::areTexturesLoaded()) {
-        BeginDrawing();
-        ClearBackground(GREEN);
-        
-        const char* loadingText = "Loading...";
-        int fontSize = static_cast<int>(40 * scaleFactor);
-        Vector2 textSize = MeasureTextEx(GetFontDefault(), loadingText, fontSize, 2);
-        
-        // Draw loading text
-        DrawText(loadingText, 
-                (WINDOW_WIDTH - textSize.x) / 2,
-                (WINDOW_HEIGHT - textSize.y) / 2,
-                fontSize, WHITE);
-                
-        // Draw progress bar
-        float progress = Card::getLoadingProgress();
-        int barWidth = static_cast<int>(200 * scaleFactor);
-        int barHeight = static_cast<int>(20 * scaleFactor);
-        int barX = (WINDOW_WIDTH - barWidth) / 2;
-        int barY = (WINDOW_HEIGHT - textSize.y) / 2 + textSize.y + 20 * scaleFactor;
-        
-        DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
-        DrawRectangle(barX, barY, static_cast<int>(barWidth * progress), barHeight, WHITE);
-        DrawRectangleLines(barX, barY, barWidth, barHeight, BLACK);
-        
-        EndDrawing();
+    // Initialize piles
+    tableau.resize(7);
+    foundations.resize(4);
+
+    // Load cards
+    std::string currentDir = GetWorkingDirectory();
+    std::string cardBackPath = "assets/cards/card_back_red.png";
+    if (!FileExists(cardBackPath.c_str())) {
+        cardBackPath = currentDir + "/assets/cards/card_back_red.png";
     }
-    
-    // Now that textures are loaded, initialize the game
+    Card::loadCardBack(cardBackPath);
+    loadCards();
     resetGame();
 }
 
@@ -240,11 +165,11 @@ void Solitaire::dealCards() {
 std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
     // Check tableau piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 7; i++) {
-        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-        float y = 130 * scaleFactor + MENU_HEIGHT;  // Changed from 150 to 130
+        float x = 50 + i * tableauSpacing;
+        float y = 130 + menuHeight;  // Changed from 150 to 130
         
         // Check if click is within the pile's x-range
-        if (x <= pos.x && pos.x <= x + CARD_WIDTH) {
+        if (x <= pos.x && pos.x <= x + cardWidth) {
             // If pile has cards, check each card's position
             if (!tableau[i].empty()) {
                 float cardY = y;
@@ -255,11 +180,11 @@ std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
                             return &tableau[i];
                         }
                     }
-                    cardY += CARD_SPACING;
+                    cardY += cardSpacing;
                 }
             } else {
                 // Empty tableau pile - check if click is in the empty space
-                Rectangle emptyRect = { x, y, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
+                Rectangle emptyRect = { x, y, static_cast<float>(cardWidth), static_cast<float>(cardHeight) };
                 if (CheckCollisionPointRec(pos, emptyRect)) {
                     return &tableau[i];
                 }
@@ -269,11 +194,11 @@ std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
 
     // Check foundation piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 4; i++) {
-        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-        float y = 10 * scaleFactor + MENU_HEIGHT;  // Add MENU_HEIGHT
+        float x = 50 + i * tableauSpacing;
+        float y = 10 + menuHeight;  // Add MENU_HEIGHT
         
         // Check if click is within the pile's x-range and y-range
-        if (x <= pos.x && pos.x <= x + CARD_WIDTH && y <= pos.y && pos.y <= y + CARD_HEIGHT) {
+        if (x <= pos.x && pos.x <= x + cardWidth && y <= pos.y && pos.y <= y + cardHeight) {
             if (!foundations[i].empty()) {
                 foundations[i].back().setPosition(x, y);
                 if (CheckCollisionPointRec(pos, foundations[i].back().getRect())) {
@@ -281,7 +206,7 @@ std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
                 }
             } else {
                 // Empty foundation pile
-                Rectangle emptyRect = { x, y, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
+                Rectangle emptyRect = { x, y, static_cast<float>(cardWidth), static_cast<float>(cardHeight) };
                 if (CheckCollisionPointRec(pos, emptyRect)) {
                     return &foundations[i];
                 }
@@ -290,16 +215,16 @@ std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
     }
 
     // Check stock pile
-    float stockX = 50 * scaleFactor;
-    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
-    Rectangle stockRect = { stockX, stockY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
+    float stockX = 50;
+    float stockY = gameScreenHeight - cardHeight - 20;
+    Rectangle stockRect = { stockX, stockY, static_cast<float>(cardWidth), static_cast<float>(cardHeight) };
     if (CheckCollisionPointRec(pos, stockRect)) {
         return &stock;
     }
 
     // Check waste pile
-    float wasteX = stockX + TABLEAU_SPACING;
-    float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
+    float wasteX = stockX + tableauSpacing;
+    float wasteY = gameScreenHeight - cardHeight - 20;
     if (!waste.empty()) {
         waste.back().setPosition(wasteX, wasteY);
         if (CheckCollisionPointRec(pos, waste.back().getRect())) {
@@ -307,7 +232,7 @@ std::vector<Card>* Solitaire::getPileAtPos(Vector2 pos) {
         }
     } else {
         // Empty waste pile
-        Rectangle emptyRect = { wasteX, wasteY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
+        Rectangle emptyRect = { wasteX, wasteY, static_cast<float>(cardWidth), static_cast<float>(cardHeight) };
         if (CheckCollisionPointRec(pos, emptyRect)) {
             return &waste;
         }
@@ -384,9 +309,9 @@ bool Solitaire::moveCards(std::vector<Card>& sourcePile, std::vector<Card>& targ
 
 void Solitaire::handleMouseDown(Vector2 pos) {
     // Check stock pile first (no change needed)
-    float stockX = 50 * scaleFactor;
-    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
-    Rectangle stockRect = { stockX, stockY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
+    float stockX = 50;
+    float stockY = gameScreenHeight - cardHeight - 20;
+    Rectangle stockRect = { stockX, stockY, static_cast<float>(cardWidth), static_cast<float>(cardHeight) };
     if (CheckCollisionPointRec(pos, stockRect)) {
         if (stock.empty() && !waste.empty()) {
             // Only restore waste cards if stock is empty and waste is not empty
@@ -415,24 +340,24 @@ void Solitaire::handleMouseDown(Vector2 pos) {
 
     // Find the card that was clicked (account for MENU_HEIGHT in foundation and tableau)
     for (int i = 0; i < 7; i++) {
-        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-        float y = 130 * scaleFactor + MENU_HEIGHT;  // Changed from 150 to 130
+        float x = 50 + i * tableauSpacing;
+        float y = 130 + menuHeight;  // Changed from 150 to 130
         
         // Check if click is within the pile's x-range
-        if (x <= pos.x && pos.x <= x + CARD_WIDTH) {
+        if (x <= pos.x && pos.x <= x + cardWidth) {
             // Find the actual card that was clicked by checking the y-position
             float baseY = y;
             float clickedY = pos.y;
             
             // Calculate which card was actually clicked based on y-position
-            int clickedIndex = (clickedY - baseY) / CARD_SPACING;
+            int clickedIndex = (clickedY - baseY) / cardSpacing;
             if (clickedIndex < 0) clickedIndex = 0;
             if (clickedIndex >= tableau[i].size()) clickedIndex = tableau[i].size() - 1;
             
             // Only select if the card at this position is face up and we're actually clicking on its rectangle
             if (tableau[i][clickedIndex].isFaceUp()) {
                 // Set the card's position to check for collision
-                tableau[i][clickedIndex].setPosition(x, baseY + clickedIndex * CARD_SPACING);
+                tableau[i][clickedIndex].setPosition(x, baseY + clickedIndex * cardSpacing);
                 if (CheckCollisionPointRec(pos, tableau[i][clickedIndex].getRect())) {
                     draggedCards.clear();
                     for (int j = clickedIndex; j < tableau[i].size(); j++) {
@@ -444,7 +369,7 @@ void Solitaire::handleMouseDown(Vector2 pos) {
                     // Calculate offset from mouse position to card position
                     dragOffset = {
                         pos.x - x,
-                        pos.y - (baseY + clickedIndex * CARD_SPACING)
+                        pos.y - (baseY + clickedIndex * cardSpacing)
                     };
                     break;
                 }
@@ -456,8 +381,8 @@ void Solitaire::handleMouseDown(Vector2 pos) {
     // Check foundation piles if no card was found in tableau
     if (draggedCards.empty()) {
         for (int i = 0; i < 4; i++) {
-            float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-            float y = 10 * scaleFactor + MENU_HEIGHT;
+            float x = 50 + i * tableauSpacing;
+            float y = 10 + menuHeight;
             
             if (!foundations[i].empty()) {
                 foundations[i].back().setPosition(x, y);
@@ -480,8 +405,8 @@ void Solitaire::handleMouseDown(Vector2 pos) {
 
     // Check waste pile if no card was found in tableau or foundation
     if (draggedCards.empty() && !waste.empty()) {
-        float wasteX = stockX + TABLEAU_SPACING;
-        float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
+        float wasteX = stockX + tableauSpacing;
+        float wasteY = gameScreenHeight - cardHeight - 20;
         waste.back().setPosition(wasteX, wasteY);
         if (CheckCollisionPointRec(pos, waste.back().getRect())) {
             draggedCards.clear();
@@ -592,9 +517,9 @@ void Solitaire::returnDraggedCards() {
     }
 
     if (draggedSourcePile == &waste) {
-        float stockX = 50 * scaleFactor;
-        float wasteX = stockX + TABLEAU_SPACING;
-        float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
+        float stockX = 50;
+        float wasteX = stockX + tableauSpacing;
+        float wasteY = gameScreenHeight - cardHeight - 20;
         for (size_t i = 0; i < draggedCards.size(); i++) {
             draggedCards[i].setPosition(wasteX, wasteY);
         }
@@ -603,8 +528,8 @@ void Solitaire::returnDraggedCards() {
         // Find the original foundation pile
         for (int i = 0; i < 4; i++) {
             if (&foundations[i] == draggedSourcePile) {
-                float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-                float y = 10 * scaleFactor + MENU_HEIGHT;
+                float x = 50 + i * tableauSpacing;
+                float y = 10 + menuHeight;
                 for (size_t j = 0; j < draggedCards.size(); j++) {
                     draggedCards[j].setPosition(x, y);
                 }
@@ -615,10 +540,10 @@ void Solitaire::returnDraggedCards() {
         // Find the original tableau pile
         for (int i = 0; i < 7; i++) {
             if (&tableau[i] == draggedSourcePile) {
-                float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-                float y = 130 * scaleFactor + MENU_HEIGHT;
+                float x = 50 + i * tableauSpacing;
+                float y = 130 + menuHeight;
                 for (size_t j = 0; j < draggedCards.size(); j++) {
-                    draggedCards[j].setPosition(x, y + (draggedStartIndex + j) * CARD_SPACING);
+                    draggedCards[j].setPosition(x, y + (draggedStartIndex + j) * cardSpacing);
                 }
                 break;
             }
@@ -663,65 +588,68 @@ bool Solitaire::checkWin() {
     return true;
 }
 
-void Solitaire::saveGame() {
+bool Solitaire::saveGame() {
 #ifndef EMSCRIPTEN_BUILD
-    json gameState;
-    
-    // Save tableau piles
-    for (const auto& pile : tableau) {
-        json pileData;
-        for (const auto& card : pile) {
-            json cardData;
-            cardData["suit"] = card.getSuit();
-            cardData["value"] = card.getValue();
-            cardData["faceUp"] = card.isFaceUp();
-            pileData.push_back(cardData);
-        }
-        gameState["tableau"].push_back(pileData);
-    }
-    
-    // Save foundation piles
-    for (const auto& pile : foundations) {
-        json pileData;
-        for (const auto& card : pile) {
-            json cardData;
-            cardData["suit"] = card.getSuit();
-            cardData["value"] = card.getValue();
-            cardData["faceUp"] = card.isFaceUp();
-            pileData.push_back(cardData);
-        }
-        gameState["foundations"].push_back(pileData);
-    }
-    
-    // Save stock pile
-    json stockData;
-    for (const auto& card : stock) {
-        json cardData;
-        cardData["suit"] = card.getSuit();
-        cardData["value"] = card.getValue();
-        cardData["faceUp"] = card.isFaceUp();
-        stockData.push_back(cardData);
-    }
-    gameState["stock"] = stockData;
-    
-    // Save waste pile
-    json wasteData;
-    for (const auto& card : waste) {
-        json cardData;
-        cardData["suit"] = card.getSuit();
-        cardData["value"] = card.getValue();
-        cardData["faceUp"] = card.isFaceUp();
-        wasteData.push_back(cardData);
-    }
-    gameState["waste"] = wasteData;
-    
-    // Save game state to file
     std::ofstream file("solitaire_save.txt");
-    if (file.is_open()) {
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    try {
+        json gameState;
+        
+        // Save tableau piles
+        for (const auto& pile : tableau) {
+            json pileJson;
+            for (const auto& card : pile) {
+                json cardJson;
+                cardJson["suit"] = card.getSuit();
+                cardJson["value"] = card.getValue();
+                cardJson["faceUp"] = card.isFaceUp();
+                pileJson.push_back(cardJson);
+            }
+            gameState["tableau"].push_back(pileJson);
+        }
+        
+        // Save foundation piles
+        for (const auto& pile : foundations) {
+            json pileJson;
+            for (const auto& card : pile) {
+                json cardJson;
+                cardJson["suit"] = card.getSuit();
+                cardJson["value"] = card.getValue();
+                cardJson["faceUp"] = card.isFaceUp();
+                pileJson.push_back(cardJson);
+            }
+            gameState["foundations"].push_back(pileJson);
+        }
+        
+        // Save stock pile
+        for (const auto& card : stock) {
+            json cardJson;
+            cardJson["suit"] = card.getSuit();
+            cardJson["value"] = card.getValue();
+            cardJson["faceUp"] = card.isFaceUp();
+            gameState["stock"].push_back(cardJson);
+        }
+        
+        // Save waste pile
+        for (const auto& card : waste) {
+            json cardJson;
+            cardJson["suit"] = card.getSuit();
+            cardJson["value"] = card.getValue();
+            cardJson["faceUp"] = card.isFaceUp();
+            gameState["waste"].push_back(cardJson);
+        }
+        
         file << gameState.dump(4);
         file.close();
+        return true;
+    } catch (const std::exception& e) {
+        return false;
     }
 #endif
+    return false;  // Return false if not compiled with PLATFORM_DESKTOP
 }
 
 bool Solitaire::loadGame() {
@@ -847,14 +775,14 @@ bool Solitaire::loadGame() {
 
 void Solitaire::handleMenuClick(Vector2 pos) {
     // Check if clicking on menu bar
-    if (pos.y < MENU_ITEM_HEIGHT) {
+    if (pos.y < menuItemHeight) {
         // Check if clicking on File menu
-        if (pos.x >= MENU_FILE_X && pos.x < MENU_FILE_X + MENU_FILE_WIDTH) {
+        if (pos.x >= menuFileX && pos.x < menuFileX + menuFileWidth) {
             menuOpen = !menuOpen;
             helpMenuOpen = false;  // Close Help menu when opening File menu
         }
         // Check if clicking on Help menu
-        else if (pos.x >= BASE_MENU_HELP_X && pos.x < BASE_MENU_HELP_X + BASE_MENU_HELP_WIDTH) {
+        else if (pos.x >= menuHelpX && pos.x < menuHelpX + menuHelpWidth) {
             helpMenuOpen = !helpMenuOpen;
             menuOpen = false;  // Close File menu when opening Help menu
         }
@@ -864,9 +792,9 @@ void Solitaire::handleMenuClick(Vector2 pos) {
         }
     }
     // Check if clicking on File menu items
-    else if (menuOpen && pos.y >= MENU_ITEM_HEIGHT && pos.y < MENU_ITEM_HEIGHT + MENU_DROPDOWN_HEIGHT) {
-        if (pos.x >= MENU_FILE_X && pos.x < MENU_FILE_X + MENU_FILE_WIDTH) {
-            int itemIndex = (pos.y - MENU_ITEM_HEIGHT) / MENU_ITEM_HEIGHT;
+    else if (menuOpen && pos.y >= menuItemHeight && pos.y < menuItemHeight + menuDropdownHeight) {
+        if (pos.x >= menuFileX && pos.x < menuFileX + menuFileWidth) {
+            int itemIndex = (pos.y - menuItemHeight) / menuItemHeight;
             switch (itemIndex) {
                 case 0: // New Game
                     resetGame();
@@ -885,9 +813,9 @@ void Solitaire::handleMenuClick(Vector2 pos) {
         }
     }
     // Check if clicking on Help menu items
-    else if (helpMenuOpen && pos.y >= MENU_ITEM_HEIGHT && pos.y < MENU_ITEM_HEIGHT + BASE_MENU_HELP_DROPDOWN_HEIGHT) {
-        if (pos.x >= BASE_MENU_HELP_X && pos.x < BASE_MENU_HELP_X + BASE_MENU_HELP_WIDTH) {
-            int itemIndex = (pos.y - MENU_ITEM_HEIGHT) / MENU_ITEM_HEIGHT;
+    else if (helpMenuOpen && pos.y >= menuItemHeight && pos.y < menuItemHeight + menuHelpDropdownHeight) {
+        if (pos.x >= menuHelpX && pos.x < menuHelpX + menuHelpWidth) {
+            int itemIndex = (pos.y - menuItemHeight) / menuItemHeight;
             if (itemIndex == 0) { // About
                 showAboutDialog();
             }
@@ -906,9 +834,9 @@ void Solitaire::showAboutDialog() {
 
 void Solitaire::handleRightClick(Vector2 pos) {
     // Check if clicking on stock pile area
-    float stockX = 50 * scaleFactor;
-    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
-    Rectangle stockRect = { stockX, stockY, static_cast<float>(CARD_WIDTH), static_cast<float>(CARD_HEIGHT) };
+    float stockX = 50;
+    float stockY = gameScreenHeight - cardHeight - 20;
+    Rectangle stockRect = { stockX, stockY, static_cast<float>(cardWidth), static_cast<float>(cardHeight) };
     
     if (CheckCollisionPointRec(pos, stockRect) && lastDrawnCard != nullptr && !waste.empty() && lastDrawnCard == &waste.back()) {
         // Move the last drawn card back to stock
@@ -923,7 +851,7 @@ void Solitaire::handleRightClick(Vector2 pos) {
 void Solitaire::update() {
     static int frameCount = 0;
     frameCount++;
-    
+
     if (frameCount % 60 == 0) {  // Log every second (assuming 60 FPS)
     }
 
@@ -972,8 +900,8 @@ void Solitaire::draw() {
 
     // Draw foundation piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 4; i++) {
-        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-        float y = 10 * scaleFactor + MENU_HEIGHT;  // Add MENU_HEIGHT
+        float x = 50 + i * tableauSpacing;
+        float y = 10 + menuHeight;  // Add MENU_HEIGHT
         if (!foundations[i].empty()) {
             // If this foundation pile is the source of the dragged card, show the card underneath
             if (draggedSourcePile == &foundations[i] && foundations[i].size() > 1) {
@@ -986,29 +914,29 @@ void Solitaire::draw() {
             }
         } else {
             // Draw empty foundation slot
-            DrawRectangle(x, y, CARD_WIDTH, CARD_HEIGHT, WHITE);
-            DrawRectangleLines(x, y, CARD_WIDTH, CARD_HEIGHT, BLACK);
+            DrawRectangle(x, y, cardWidth, cardHeight, WHITE);
+            DrawRectangleLines(x, y, cardWidth, cardHeight, BLACK);
         }
     }
 
     // Draw tableau piles (moved down by MENU_HEIGHT)
     for (int i = 0; i < 7; i++) {
-        float x = 50 * scaleFactor + i * TABLEAU_SPACING;
-        float y = 130 * scaleFactor + MENU_HEIGHT;
+        float x = 50 + i * tableauSpacing;
+        float y = 130 + menuHeight;
          
         for (size_t j = 0; j < tableau[i].size(); j++) {
             // Skip drawing cards that are being dragged
             if (draggedSourcePile == &tableau[i] && j >= draggedStartIndex) {
                 continue;
             }
-            tableau[i][j].setPosition(x, y + j * CARD_SPACING);
+            tableau[i][j].setPosition(x, y + j * cardSpacing);
             tableau[i][j].draw();
         }
     }
 
     // Draw stock pile
-    float stockX = 50 * scaleFactor;
-    float stockY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
+    float stockX = 50;
+    float stockY = gameScreenHeight - cardHeight - 20;
     if (!stock.empty()) {
         // Skip drawing the stock card if it's being dragged
         if (draggedSourcePile != &stock) {
@@ -1019,8 +947,8 @@ void Solitaire::draw() {
             
             for (int i = 0; i < cardsToShow; i++) {
                 // Calculate offset for each card in the stack
-                float offsetX = i * 2 * scaleFactor;  // Small horizontal offset
-                float offsetY = i * 2 * scaleFactor;  // Small vertical offset
+                float offsetX = i * 2;  // Small horizontal offset
+                float offsetY = i * 2;  // Small vertical offset
                 
                 // Get the card from the end of the stock pile
                 Card& card = stock[stock.size() - 1 - i];
@@ -1029,17 +957,17 @@ void Solitaire::draw() {
             }
             
             // Always show the total number of cards
-            int fontSize = static_cast<int>(20 * scaleFactor);
+            int fontSize = static_cast<int>(20);
             DrawText(TextFormat("%d", numCards), 
-                    stockX + CARD_WIDTH - 55 * scaleFactor, 
-                    stockY + CARD_HEIGHT - 20 * scaleFactor, 
+                    stockX + cardWidth - 55, 
+                    stockY + cardHeight - 20, 
                     fontSize, BLACK);
         }
     }
 
     // Draw waste pile
-    float wasteX = stockX + TABLEAU_SPACING;
-    float wasteY = WINDOW_HEIGHT - CARD_HEIGHT - 20 * scaleFactor;
+    float wasteX = stockX + tableauSpacing;
+    float wasteY = gameScreenHeight - cardHeight - 20;
     if (!waste.empty()) {
         // Skip drawing the waste card if it's being dragged
         if (draggedSourcePile != &waste) {
@@ -1055,7 +983,7 @@ void Solitaire::draw() {
             // Apply the drag offset to maintain the relative position
             draggedCards[i].setPosition(
                 mousePos.x - dragOffset.x,
-                mousePos.y - dragOffset.y + i * CARD_SPACING
+                mousePos.y - dragOffset.y + i * cardSpacing
             );
             draggedCards[i].draw();
         }
@@ -1063,30 +991,30 @@ void Solitaire::draw() {
 
     // Draw all UI elements last
     // Draw menu bar
-    DrawRectangle(0, 0, WINDOW_WIDTH, MENU_HEIGHT, DARKGRAY);
-    int fontSize = static_cast<int>(20 * scaleFactor);
-    DrawText("File", MENU_FILE_X + MENU_TEXT_PADDING, MENU_TEXT_PADDING, fontSize, WHITE);
-    DrawText("Help", BASE_MENU_HELP_X + MENU_TEXT_PADDING, MENU_TEXT_PADDING, fontSize, WHITE);
+    DrawRectangle(0, 0, gameScreenWidth, menuHeight, DARKGRAY);
+    int fontSize = static_cast<int>(20);
+    DrawText("File", menuFileX + menuTextPadding, menuTextPadding, fontSize, WHITE);
+    DrawText("Help", menuHelpX + menuTextPadding, menuTextPadding, fontSize, WHITE);
     
     // Draw menu items when File is clicked
     if (menuOpen) {
-        DrawRectangle(MENU_FILE_X, MENU_HEIGHT, MENU_FILE_WIDTH, MENU_DROPDOWN_HEIGHT, DARKGRAY);
-        DrawText("New Game", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_TEXT_PADDING, fontSize, WHITE);
+        DrawRectangle(menuFileX, menuHeight, menuFileWidth, menuDropdownHeight, DARKGRAY);
+        DrawText("New Game", menuFileX + menuTextPadding, menuHeight + menuTextPadding, fontSize, WHITE);
 #ifndef EMSCRIPTEN_BUILD        
-        DrawText("Save", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT + MENU_TEXT_PADDING, fontSize, WHITE);
-        DrawText("Load", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 2 + MENU_TEXT_PADDING, fontSize, WHITE);
-        DrawText("Exit", MENU_FILE_X + MENU_TEXT_PADDING, MENU_HEIGHT + MENU_ITEM_HEIGHT * 3 + MENU_TEXT_PADDING, fontSize, WHITE);
+        DrawText("Save", menuFileX + menuTextPadding, menuHeight + menuItemHeight + menuTextPadding, fontSize, WHITE);
+        DrawText("Load", menuFileX + menuTextPadding, menuHeight + menuItemHeight * 2 + menuTextPadding, fontSize, WHITE);
+        DrawText("Exit", menuFileX + menuTextPadding, menuHeight + menuItemHeight * 3 + menuTextPadding, fontSize, WHITE);
 #endif
     }
 
     // Draw Help menu dropdown if open
     if (helpMenuOpen) {
-        DrawRectangle(BASE_MENU_HELP_X, MENU_HEIGHT, BASE_MENU_HELP_WIDTH, BASE_MENU_HELP_DROPDOWN_HEIGHT, DARKGRAY);
-        DrawRectangleLines(BASE_MENU_HELP_X, MENU_HEIGHT, BASE_MENU_HELP_WIDTH, BASE_MENU_HELP_DROPDOWN_HEIGHT, WHITE);
+        DrawRectangle(menuHelpX, menuHeight, menuHelpWidth, menuHelpDropdownHeight, DARKGRAY);
+        DrawRectangleLines(menuHelpX, menuHeight, menuHelpWidth, menuHelpDropdownHeight, WHITE);
         
         DrawText("About", 
-                BASE_MENU_HELP_X + BASE_MENU_TEXT_PADDING, 
-                MENU_HEIGHT + BASE_MENU_TEXT_PADDING, 
+                menuHelpX + menuTextPadding, 
+                menuHeight + menuTextPadding, 
                 20, WHITE);
     }
 
@@ -1106,8 +1034,8 @@ void Solitaire::draw() {
         int textWidth = MeasureText(aboutText, fontSize);
         int dialogWidth = textWidth + 40;
         int dialogHeight = 300;
-        int dialogX = (GetScreenWidth() - dialogWidth) / 2;
-        int dialogY = (GetScreenHeight() - dialogHeight) / 2;
+        int dialogX = (gameScreenWidth - dialogWidth) / 2;
+        int dialogY = (gameScreenHeight - dialogHeight) / 2;
 
         // Draw dialog background
         DrawRectangle(dialogX, dialogY, dialogWidth, dialogHeight, LIGHTGRAY);
@@ -1143,7 +1071,7 @@ void Solitaire::draw() {
     }
 
     if (gameWon) {
-        fontSize = static_cast<int>(40 * scaleFactor);
-        DrawText("You Win!", WINDOW_WIDTH/2 - 100 * scaleFactor, WINDOW_HEIGHT/2, fontSize, WHITE);
+        fontSize = static_cast<int>(40);
+        DrawText("You Win!", gameScreenWidth/2 - 100, gameScreenHeight/2, fontSize, WHITE);
     }
 } 

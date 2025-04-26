@@ -12,6 +12,8 @@ std::unordered_map<std::string, Texture2D> Card::textureCache;
 bool Card::texturesLoaded = false;
 bool Card::isMobile = false;  // Initialize isMobile to false
 
+extern float gameScale;
+
 // Add new static member to track loading progress
 static std::atomic<int> loadedTexturesCount(0);
 static std::atomic<bool> loadingInProgress(false);
@@ -27,8 +29,8 @@ void Card::loadTexture(const std::string& imagePath) {
     }
 
     // Scale the image based on Solitaire's current scaleFactor
-    int scaledWidth = static_cast<int>(BASE_CARD_WIDTH * Solitaire::scaleFactor);
-    int scaledHeight = static_cast<int>(BASE_CARD_HEIGHT * Solitaire::scaleFactor);
+    int scaledWidth = static_cast<int>(baseCardWidth * gameScale);
+    int scaledHeight = static_cast<int>(baseCardHeight * gameScale);
     
     // Resize the image to match the scaled dimensions
     ImageResize(&img, scaledWidth, scaledHeight);
@@ -109,8 +111,8 @@ void Card::loadCardBack(const std::string &imagePath) {
             }
 
             // Scale the image based on Solitaire's current scaleFactor
-            int scaledWidth = static_cast<int>(BASE_CARD_WIDTH * Solitaire::scaleFactor);
-            int scaledHeight = static_cast<int>(BASE_CARD_HEIGHT * Solitaire::scaleFactor);
+            int scaledWidth = static_cast<int>(baseCardWidth * gameScale);
+            int scaledHeight = static_cast<int>(baseCardHeight * gameScale);
             
             ImageResize(&img, scaledWidth, scaledHeight);
             cardBack = LoadTextureFromImage(img);
@@ -154,7 +156,7 @@ Card::Card(const std::string &suit, const std::string &value,
         image = textureCache[imagePath];
     }
 
-    rect = {0, 0, (float)CARD_WIDTH, (float)CARD_HEIGHT};
+    rect = {0, 0, (float)baseCardWidth, (float)baseCardHeight};
 }
 
 // Copy constructor - don't unload the original texture

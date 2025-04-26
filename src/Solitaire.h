@@ -8,46 +8,40 @@
 // Define debug flag
 #define DEBUG 1
 
-// Define base constants
-const int BASE_CARD_WIDTH = 71;
-const int BASE_CARD_HEIGHT = 96;
-const int BASE_CARD_SPACING = 20;
-const int BASE_TABLEAU_SPACING = 100;
-const int BASE_WINDOW_WIDTH = 800;
-const int BASE_WINDOW_HEIGHT = 600;
-const int BASE_MENU_HEIGHT = 30;
+// Base dimensions (unscaled)
+const int baseCardWidth = 71;
+const int baseCardHeight = 96;
+const int baseCardSpacing = 20;
+const int baseTableauSpacing = 100;
+const int gameScreenWidth = 800;
+const int gameScreenHeight = 600;
+const int baseMenuHeight = 30;
+const int baseMenuFileX = 160;
+const int baseMenuFileWidth = 100;
+const int baseMenuHelpX = 260;  // Position of Help menu
+const int baseMenuHelpWidth = 100;  // Width of Help menu
+const int baseMenuItemHeight = 25;
+const int baseMenuTextPadding = 5;
+const int baseMenuDropdownHeight = baseMenuItemHeight * 4;  // 4 menu items
+const int baseMenuHelpDropdownHeight = baseMenuItemHeight * 1;  // 1 menu item for Help
 
-// Base menu constants
-const int BASE_MENU_FILE_X = 160;
-const int BASE_MENU_FILE_WIDTH = 100;
-const int BASE_MENU_HELP_X = 260;  // Position of Help menu
-const int BASE_MENU_HELP_WIDTH = 100;  // Width of Help menu
-const int BASE_MENU_ITEM_HEIGHT = 25;
-const int BASE_MENU_TEXT_PADDING = 5;
-const int BASE_MENU_DROPDOWN_HEIGHT = BASE_MENU_ITEM_HEIGHT * 4;  // 4 menu items
-const int BASE_MENU_HELP_DROPDOWN_HEIGHT = BASE_MENU_ITEM_HEIGHT * 1;  // 1 menu item for Help
-
-const float SCALE_FACTOR = 1.0f;
-const float MOBILE_SCALE_FACTOR = 0.7f;
-
-// Scaled constants (will be calculated in constructor)
-extern int CARD_WIDTH;
-extern int CARD_HEIGHT;
-extern int CARD_SPACING;
-extern int TABLEAU_SPACING;
-extern int WINDOW_WIDTH;
-extern int WINDOW_HEIGHT;
-extern int MENU_HEIGHT;
-extern int MENU_FILE_X;
-extern int MENU_FILE_WIDTH;
-extern int MENU_ITEM_HEIGHT;
-extern int MENU_TEXT_PADDING;
-extern int MENU_DROPDOWN_HEIGHT;
+// Scaled dimensions (extern)
+extern int cardWidth;
+extern int cardHeight;
+extern int cardSpacing;
+extern int tableauSpacing;
+extern int menuHeight;
+extern int menuFileX;
+extern int menuFileWidth;
+extern int menuHelpX;
+extern int menuHelpWidth;
+extern int menuItemHeight;
+extern int menuTextPadding;
+extern int menuDropdownHeight;
+extern int menuHelpDropdownHeight;
 
 class Solitaire {
 public:
-    static float scaleFactor; // Static scale factor for the game
-    
     Solitaire();
     ~Solitaire();
 
@@ -99,6 +93,6 @@ private:
     std::string getNextValue(const std::string& value);
 
     // Save and load game methods
-    void saveGame();
+    bool saveGame();
     bool loadGame();
 }; 
