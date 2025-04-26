@@ -13,6 +13,9 @@ extern int WINDOW_HEIGHT;
 // Global game instance
 Solitaire* game = nullptr;
 
+// Global render texture for the game
+RenderTexture2D gameTarget;
+
 // Function to lock orientation in landscape mode
 void LockOrientation() {
 #ifdef EMSCRIPTEN_BUILD
@@ -104,9 +107,19 @@ void UpdateDrawFrame(void) {
     
     game->update();
     
-    BeginDrawing();
+    // Begin rendering to the game target
+    BeginTextureMode(gameTarget);
     ClearBackground(BLACK);
     game->draw();
+    EndTextureMode();
+
+    // Draw the game target to the screen
+    BeginDrawing();
+    ClearBackground(BLACK);
+    DrawTexturePro(gameTarget.texture, 
+                  (Rectangle){ 0.0f, 0.0f, (float)gameTarget.texture.width, (float)-gameTarget.texture.height },
+                  (Rectangle){ 0, 0, (float)GetScreenWidth(), (float)GetScreenHeight() },
+                  (Vector2){ 0, 0 }, 0.0f, WHITE);
     EndDrawing();
 }
 
@@ -139,6 +152,10 @@ int main(void) {
         return -1;
     }
 
+    // Create render texture for the game
+    gameTarget = LoadRenderTexture(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT);
+    SetTextureFilter(gameTarget.texture, TEXTURE_FILTER_BILINEAR);
+
 #ifdef EMSCRIPTEN_BUILD
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
@@ -153,6 +170,7 @@ int main(void) {
         game = nullptr;
     }
     
+    UnloadRenderTexture(gameTarget);
     CloseWindow();
     return 0;
 }

@@ -14,7 +14,7 @@ emcc src/*.cpp -o web-build/index.html \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s STACK_SIZE=5242880 \
   --preload-file assets@/assets \
-  --shell-file minshell.html
+  --shell-file custom_shell.html
 
 # Check if the emcc build was successful
 if [ $? -eq 0 ]; then
