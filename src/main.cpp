@@ -11,10 +11,8 @@
 
 // Global game instance
 Solitaire* game = nullptr;
-
 // Global render texture for the game
 RenderTexture2D gameTarget;
-
 float gameScale = 1.0f;
 
 

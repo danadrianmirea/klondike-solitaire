@@ -281,7 +281,15 @@ bool Solitaire::moveCards(std::vector<Card>& sourcePile, std::vector<Card>& targ
 }
 
 void Solitaire::handleMouseDown(Vector2 pos) {
-    // Check stock pile first (no change needed)
+    // Calculate the offset to center the game in the window (same as in main.cpp)
+    float offsetX = (GetScreenWidth() - (baseWindowWidth * gameScale)) * 0.5f;
+    float offsetY = (GetScreenHeight() - (baseWindowHeight * gameScale)) * 0.5f;
+    
+    // Transform mouse position to game coordinates (inverse of the rendering transform)
+    pos.x = (pos.x - offsetX) / gameScale;
+    pos.y = (pos.y - offsetY) / gameScale;
+
+    // Check stock pile first
     float stockX = 50;
     float stockY = baseWindowHeight - baseCardHeight - 20;
     Rectangle stockRect = { stockX, stockY, static_cast<float>(baseCardWidth), static_cast<float>(baseCardHeight) };
@@ -314,7 +322,7 @@ void Solitaire::handleMouseDown(Vector2 pos) {
     // Find the card that was clicked (account for MENU_HEIGHT in foundation and tableau)
     for (int i = 0; i < 7; i++) {
         float x = 50 + i * baseTableauSpacing;
-        float y = 130 + baseMenuHeight;  // Changed from 150 to 130
+        float y = 130 + baseMenuHeight;
         
         // Check if click is within the pile's x-range
         if (x <= pos.x && pos.x <= x + baseCardWidth) {
@@ -397,6 +405,14 @@ void Solitaire::handleMouseDown(Vector2 pos) {
 }
 
 void Solitaire::handleMouseUp(Vector2 pos) {
+    // Calculate the offset to center the game in the window (same as in main.cpp)
+    float offsetX = (GetScreenWidth() - (baseWindowWidth * gameScale)) * 0.5f;
+    float offsetY = (GetScreenHeight() - (baseWindowHeight * gameScale)) * 0.5f;
+    
+    // Transform mouse position to game coordinates (inverse of the rendering transform)
+    pos.x = (pos.x - offsetX) / gameScale;
+    pos.y = (pos.y - offsetY) / gameScale;
+
     // If we're not dragging any cards, there's nothing to do
     if (draggedCards.empty()) return;
 
@@ -525,6 +541,14 @@ void Solitaire::returnDraggedCards() {
 }
 
 void Solitaire::handleDoubleClick(Vector2 pos) {
+    // Calculate the offset to center the game in the window (same as in main.cpp)
+    float offsetX = (GetScreenWidth() - (baseWindowWidth * gameScale)) * 0.5f;
+    float offsetY = (GetScreenHeight() - (baseWindowHeight * gameScale)) * 0.5f;
+    
+    // Transform mouse position to game coordinates (inverse of the rendering transform)
+    pos.x = (pos.x - offsetX) / gameScale;
+    pos.y = (pos.y - offsetY) / gameScale;
+
     std::vector<Card>* pile = getPileAtPos(pos);
     if (!pile || pile->empty()) return;
 
@@ -747,6 +771,14 @@ bool Solitaire::loadGame() {
 }
 
 void Solitaire::handleMenuClick(Vector2 pos) {
+    // Calculate the offset to center the game in the window (same as in main.cpp)
+    float offsetX = (GetScreenWidth() - (baseWindowWidth * gameScale)) * 0.5f;
+    float offsetY = (GetScreenHeight() - (baseWindowHeight * gameScale)) * 0.5f;
+    
+    // Transform mouse position to game coordinates (inverse of the rendering transform)
+    pos.x = (pos.x - offsetX) / gameScale;
+    pos.y = (pos.y - offsetY) / gameScale;
+
     // Check if clicking on menu bar
     if (pos.y < baseMenuItemHeight) {
         // Check if clicking on File menu
@@ -806,6 +838,14 @@ void Solitaire::showAboutDialog() {
 }
 
 void Solitaire::handleRightClick(Vector2 pos) {
+    // Calculate the offset to center the game in the window (same as in main.cpp)
+    float offsetX = (GetScreenWidth() - (baseWindowWidth * gameScale)) * 0.5f;
+    float offsetY = (GetScreenHeight() - (baseWindowHeight * gameScale)) * 0.5f;
+    
+    // Transform mouse position to game coordinates (inverse of the rendering transform)
+    pos.x = (pos.x - offsetX) / gameScale;
+    pos.y = (pos.y - offsetY) / gameScale;
+
     // Check if clicking on stock pile area
     float stockX = 50;
     float stockY = baseWindowHeight - baseCardHeight - 20;
@@ -952,6 +992,14 @@ void Solitaire::draw() {
     // Draw dragged cards
     if (!draggedCards.empty()) {
         Vector2 mousePos = GetMousePosition();
+        // Calculate the offset to center the game in the window (same as in main.cpp)
+        float offsetX = (GetScreenWidth() - (baseWindowWidth * gameScale)) * 0.5f;
+        float offsetY = (GetScreenHeight() - (baseWindowHeight * gameScale)) * 0.5f;
+        
+        // Transform mouse position to game coordinates (inverse of the rendering transform)
+        mousePos.x = (mousePos.x - offsetX) / gameScale;
+        mousePos.y = (mousePos.y - offsetY) / gameScale;
+
         for (size_t i = 0; i < draggedCards.size(); i++) {
             // Apply the drag offset to maintain the relative position
             draggedCards[i].setPosition(
