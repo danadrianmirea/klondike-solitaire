@@ -1082,12 +1082,21 @@ void Solitaire::draw() {
         DrawText(okText, textX, textY, fontSize, WHITE);
 
         // Check if OK button is clicked
-        Vector2 mousePos = GetMousePosition();
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
-            mousePos.x >= buttonX && mousePos.x <= buttonX + buttonWidth &&
-            mousePos.y >= buttonY && mousePos.y <= buttonY + buttonHeight) {
-            aboutDialogOpen = false;
-            helpMenuOpen = false;
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            Vector2 mousePos = GetMousePosition();
+            // Calculate the offset to center the game in the window (same as in main.cpp)
+            float offsetX = (GetScreenWidth() - (baseWindowWidth * gameScale)) * 0.5f;
+            float offsetY = (GetScreenHeight() - (baseWindowHeight * gameScale)) * 0.5f;
+            
+            // Transform mouse position to game coordinates (inverse of the rendering transform)
+            mousePos.x = (mousePos.x - offsetX) / gameScale;
+            mousePos.y = (mousePos.y - offsetY) / gameScale;
+
+            if (mousePos.x >= buttonX && mousePos.x <= buttonX + buttonWidth &&
+                mousePos.y >= buttonY && mousePos.y <= buttonY + buttonHeight) {
+                aboutDialogOpen = false;
+                helpMenuOpen = false;
+            }
         }
     }
 
