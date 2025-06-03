@@ -5,32 +5,11 @@ project(raylib_solitaire)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set default build type to Debug if not specified
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
-endif()
-
-# Set available build types
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
-
-# Set linker flags based on build type
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -Wl,--subsystem,console")
-else()
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Wl,--subsystem,windows -static-libgcc -static-libstdc++ -static")
-endif()
-
 # Set raylib path - adjust this to your raylib installation path
 set(RAYLIB_PATH "C:/raylib/raylib" CACHE PATH "Path to raylib source directory")
 
-
-# Debug messages
-message(STATUS "RAYLIB_INCLUDE_DIR: ${RAYLIB_INCLUDE_DIR}")
-message(STATUS "RAYLIB_LIBRARY: ${RAYLIB_LIBRARY}")
-
-if(NOT RAYLIB_INCLUDE_DIR OR NOT RAYLIB_LIBRARY)
-    message(FATAL_ERROR "raylib not found. Please set RAYLIB_PATH to your raylib installation directory")
-endif()
+# Configure static linking
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 
 # Add nlohmann/json as a header-only library
 include(FetchContent)
@@ -60,6 +39,11 @@ else()
     )
 endif()
 
+# Add raylib as a subdirectory
+add_subdirectory(${RAYLIB_PATH} ${CMAKE_BINARY_DIR}/raylib)
+
+
+
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${RAYLIB_INCLUDE_DIR}
@@ -72,6 +56,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     winmm
     gdi32
     opengl32
+    raylib
 )
 
 # Set output directory
