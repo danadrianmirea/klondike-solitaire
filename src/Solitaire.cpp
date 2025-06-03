@@ -1043,7 +1043,7 @@ void Solitaire::draw() {
     if (aboutDialogOpen) {
         // Create a modal dialog with game information
         const char* aboutText = "Solitaire\n\n"
-                               "Classic Klondike Solitaire.\n\n"
+                               "Classic Klondike Solitaire\n\n"
                                "Controls:\n"
                                "- Drag cards to move them\n"
                                "- Double click to auto-move cards to foundation\n"
