@@ -1043,11 +1043,10 @@ void Solitaire::draw() {
     if (aboutDialogOpen) {
         // Create a modal dialog with game information
         const char* aboutText = "Solitaire\n\n"
-                               "A classic card game implementation using raylib.\n\n"
+                               "Classic Klondike Solitaire.\n\n"
                                "Controls:\n"
-                               "- Left click to select and move cards\n"
-                               "- Right click to auto-move cards to foundation\n"
                                "- Drag cards to move them\n"
+                               "- Double click to auto-move cards to foundation\n"
                                "- Use the menu for game options\n\n";
 
         // Calculate dialog dimensions

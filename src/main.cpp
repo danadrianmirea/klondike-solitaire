@@ -47,7 +47,9 @@ void UpdateDrawFrame(void) {
 int main(void) {
     // Initialize window with base dimensions first
     InitWindow(baseWindowWidth, baseWindowHeight, "Solitaire");
-    
+#ifndef EMSCRIPTEN_BUILD
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
+#endif
     if (!IsWindowReady()) {
         return -1;
     }
