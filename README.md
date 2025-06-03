@@ -2,6 +2,8 @@
 
 A classic Solitaire card game implementation using the raylib graphics library.
 
+Play on itch.io: https://adrianmirea.itch.io/
+
 ## Features
 
 - Classic Klondike Solitaire gameplay
