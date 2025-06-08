@@ -49,6 +49,7 @@ int main(void) {
     InitWindow(baseWindowWidth, baseWindowHeight, "Solitaire");
 #ifndef EMSCRIPTEN_BUILD
     SetWindowState(FLAG_WINDOW_RESIZABLE);
+    ToggleBorderlessWindowed();
 #endif
     if (!IsWindowReady()) {
         return -1;
