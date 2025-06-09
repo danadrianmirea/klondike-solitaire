@@ -1,4 +1,4 @@
-# Raylib Solitaire
+# Klondike Solitaire
 
 A classic Solitaire card game implementation using the raylib graphics library.
 
